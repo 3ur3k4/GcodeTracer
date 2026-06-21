@@ -10,7 +10,13 @@ export default defineConfig({
       main: {
         entry: 'electron/main.ts',
         vite: {
-          build: { outDir: 'dist-electron' },
+          build: {
+            outDir: 'dist-electron',
+            // serialportはネイティブアドオン(.node)を動的に解決するため、バンドルせずnode_modulesから
+            // そのままrequireさせる(バンドルするとプリビルド探索ロジックが壊れ、ABI不一致エラーになる)。
+            // Vite 8はRolldownを既定バンドラとして使うため、rollupOptionsではなくrolldownOptionsで指定する。
+            rolldownOptions: { external: ['serialport', '@serialport/bindings-cpp'] },
+          },
         },
       },
       preload: {

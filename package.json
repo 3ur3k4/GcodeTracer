@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "npm run typecheck && vite build",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && vue-tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "electron-rebuild -f -w serialport"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.7",
@@ -20,6 +21,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@types/node": "^26.0.0",
     "@vitejs/plugin-vue": "^6.0.7",
     "electron": "^42.4.1",
