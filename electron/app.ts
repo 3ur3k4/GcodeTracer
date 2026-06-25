@@ -11,7 +11,6 @@ import { OscBridge } from './osc/oscBridge'
 import { IpcGateway, type GatewayHandlers } from './ipc/gateway'
 import type { Transport } from './serial/transport'
 
-const JOG_FEED_RATE_MM_PER_MIN = 1000
 
 export interface AppDeps {
   win: BrowserWindow
@@ -94,30 +93,49 @@ export function createApp(deps: AppDeps): App {
 
     jog(x, y, z, stepSize) {
       if (!scheduler) return
-      const dx = (x * stepSize).toFixed(3)
-      const dy = (y * stepSize).toFixed(3)
-      const dz = (z * stepSize).toFixed(3)
-      scheduler.enqueue(`$J=G91 G21 X${dx} Y${dy} Z${dz} F${JOG_FEED_RATE_MM_PER_MIN}`)
+      const parts = ['G91', 'G0', 'G21']
+      if (x !== 0) parts.push(`X${(x * stepSize).toFixed(3)}`)
+      if (y !== 0) parts.push(`Y${(y * stepSize).toFixed(3)}`)
+      if (z !== 0) parts.push(`Z${(z * stepSize).toFixed(3)}`)
+      if (parts.length === 3) return
+      const cmd = parts.join(' ')
+      state.appendConsoleLine('tx', cmd)
+      scheduler.enqueue(cmd)
     },
 
     zero(axis) {
-      scheduler?.enqueue(`G10 L20 P0 ${axis}0`)
+      if (!scheduler) return
+      const cmd = `G10 L20 P0 ${axis}0`
+      state.appendConsoleLine('tx', cmd)
+      scheduler.enqueue(cmd)
+    },
+
+    gotoWorkZero() {
+      if (!scheduler) return
+      state.appendConsoleLine('tx', 'G0 X0 Y0 Z0')
+      scheduler.enqueue('G0 X0 Y0 Z0')
     },
 
     home() {
-      scheduler?.enqueue('$H')
+      if (!scheduler) return
+      state.appendConsoleLine('tx', '$H')
+      scheduler.enqueue('$H')
     },
 
     unlock() {
-      scheduler?.enqueue('$X')
+      if (!scheduler) return
+      state.appendConsoleLine('tx', '$X')
+      scheduler.enqueue('$X')
     },
 
     softReset() {
-      scheduler?.softReset()
+      if (!scheduler) return
+      state.appendConsoleLine('tx', '\x18 (soft reset)')
+      scheduler.softReset()
     },
 
-    runFile(lines) {
-      jobRunner?.start(lines)
+    runFile(lines, startLine) {
+      jobRunner?.start(lines, startLine)
     },
 
     pause() {

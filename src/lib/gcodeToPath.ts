@@ -13,6 +13,7 @@ export interface PathSegment {
   x2: number
   y2: number
   rapid: boolean
+  sourceLine: number
 }
 
 export interface Bounds {
@@ -34,14 +35,23 @@ function stripComment(line: string): string {
   return line.replace(/\(.*?\)/g, '').split(';')[0].trim()
 }
 
-function tokenize(line: string): Partial<Record<string, number>> {
+interface Tokens {
+  gCodes: number[]
+  words: Partial<Record<string, number>>
+}
+
+function tokenize(line: string): Tokens {
+  const gCodes: number[] = []
   const words: Partial<Record<string, number>> = {}
   const pattern = /([A-Za-z])\s*(-?\d+(?:\.\d+)?)/g
   let match: RegExpExecArray | null
   while ((match = pattern.exec(line))) {
-    words[match[1].toUpperCase()] = Number(match[2])
+    const letter = match[1].toUpperCase()
+    const value = Number(match[2])
+    if (letter === 'G') gCodes.push(value)
+    else words[letter] = value
   }
-  return words
+  return { gCodes, words }
 }
 
 interface ParseState {
@@ -70,7 +80,14 @@ export function gcodeToPath(lines: string[]): ToolPath {
     bounds.maxY = Math.max(bounds.maxY, y)
   }
 
-  function appendArc(endX: number, endY: number, centerX: number, centerY: number, clockwise: boolean): void {
+  function appendArc(
+    endX: number,
+    endY: number,
+    centerX: number,
+    centerY: number,
+    clockwise: boolean,
+    sourceLine: number,
+  ): void {
     const startX = state.x
     const startY = state.y
     const radius = Math.hypot(startX - centerX, startY - centerY)
@@ -88,20 +105,19 @@ export function gcodeToPath(lines: string[]): ToolPath {
       const angle = startAngle + delta * (i / steps)
       const x = centerX + radius * Math.cos(angle)
       const y = centerY + radius * Math.sin(angle)
-      segments.push({ x1: prevX, y1: prevY, x2: x, y2: y, rapid: false })
+      segments.push({ x1: prevX, y1: prevY, x2: x, y2: y, rapid: false, sourceLine })
       visit(x, y)
       prevX = x
       prevY = y
     }
   }
 
-  for (const rawLine of lines) {
-    const line = stripComment(rawLine)
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = stripComment(lines[lineIndex])
     if (!line) continue
-    const words = tokenize(line)
+    const { gCodes, words } = tokenize(line)
 
-    if (words.G !== undefined) {
-      const g = words.G
+    for (const g of gCodes) {
       if (g === 90) state.absolute = true
       else if (g === 91) state.absolute = false
       else if (g === 20) state.unitsScale = INCH_TO_MM
@@ -116,13 +132,13 @@ export function gcodeToPath(lines: string[]): ToolPath {
     const targetY = resolveAxis(words.Y, state.y, state)
 
     if (state.motion === 0 || state.motion === 1) {
-      segments.push({ x1: state.x, y1: state.y, x2: targetX, y2: targetY, rapid: state.motion === 0 })
+      segments.push({ x1: state.x, y1: state.y, x2: targetX, y2: targetY, rapid: state.motion === 0, sourceLine: lineIndex })
       visit(targetX, targetY)
     } else {
       // G2(時計回り)/G3(反時計回り): IJK形式の円弧中心オフセットのみ対応
       const centerX = state.x + (words.I ?? 0) * state.unitsScale
       const centerY = state.y + (words.J ?? 0) * state.unitsScale
-      appendArc(targetX, targetY, centerX, centerY, state.motion === 2)
+      appendArc(targetX, targetY, centerX, centerY, state.motion === 2, lineIndex)
     }
 
     state.x = targetX

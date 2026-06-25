@@ -18,10 +18,11 @@ export interface GatewayHandlers {
   sendCommand(command: string): void
   jog(x: number, y: number, z: number, stepSize: number): void
   zero(axis: 'X' | 'Y' | 'Z'): void
+  gotoWorkZero(): void
   home(): void
   unlock(): void
   softReset(): void
-  runFile(lines: string[]): void
+  runFile(lines: string[], startLine: number): void
   pause(): void
   resume(): void
   cancel(): void
@@ -96,6 +97,9 @@ export class IpcGateway {
         case 'zero':
           this.handlers.zero(message.axis)
           break
+        case 'goto-work-zero':
+          this.handlers.gotoWorkZero()
+          break
         case 'home':
           this.handlers.home()
           break
@@ -106,7 +110,7 @@ export class IpcGateway {
           this.handlers.softReset()
           break
         case 'run-file':
-          this.handlers.runFile(message.lines)
+          this.handlers.runFile(message.lines, message.startLine)
           break
         case 'pause':
           this.handlers.pause()

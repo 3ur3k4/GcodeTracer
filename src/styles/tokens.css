@@ -1,8 +1,15 @@
 :root {
-  --color-white: #fafaf7;
-  --color-black: #191919;
-  --color-accent: #0fd140;
-  --color-accent-text: #0a8f2c;
+  --bg: #f2f2ef;
+  --surface: #ffffff;
+  --surface2: #f7f7f4;
+  --border: #dededa;
+  --tp: #191919;
+  --ts: #6e6e6e;
+  --accent: #0aaa33;
+  --danger: #d92d20;
+  --warning: #c77a1f;
+
+  --grid-line: #e0e0dc;
 
   --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -18,29 +25,24 @@
   --radius-md: 8px;
   --radius-lg: 12px;
 
-  --color-bg: var(--color-white);
-  --color-surface: #ffffff;
-  --color-text-primary: #191919;
-  --color-text-secondary: #6e6e6e;
-  --color-border: #dededa;
-  --color-danger: #d92d20;
-  --color-warning: #c77a1f;
-
-  --state-idle: var(--color-text-secondary);
-  --state-run: var(--color-accent);
-  --state-hold: var(--color-warning);
-  --state-alarm: var(--color-danger);
+  --state-idle: var(--ts);
+  --state-run: var(--accent);
+  --state-hold: var(--warning);
+  --state-alarm: var(--danger);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: var(--color-black);
-    --color-surface: #222222;
-    --color-text-primary: var(--color-white);
-    --color-text-secondary: #9a9a9a;
-    --color-border: #3a3a3a;
-    --color-danger: #f2675c;
-    --color-warning: #f5a623;
-    --color-accent-text: var(--color-accent);
+    --bg: #191919;
+    --surface: #222222;
+    --surface2: #2a2a2a;
+    --border: #3a3a3a;
+    --tp: #fafaf7;
+    --ts: #9a9a9a;
+    --accent: #0fd140;
+    --danger: #f2675c;
+    --warning: #f5a623;
+
+    --grid-line: #2e2e2e;
   }
 }

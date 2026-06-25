@@ -31,6 +31,9 @@ export function useIpc() {
     zero(axis: 'X' | 'Y' | 'Z'): void {
       dispatch({ type: 'zero', axis })
     },
+    gotoWorkZero(): void {
+      dispatch({ type: 'goto-work-zero' })
+    },
     home(): void {
       dispatch({ type: 'home' })
     },
@@ -40,8 +43,8 @@ export function useIpc() {
     softReset(): void {
       dispatch({ type: 'soft-reset' })
     },
-    runFile(lines: string[]): void {
-      dispatch({ type: 'run-file', lines })
+    runFile(lines: string[], startLine = 0): void {
+      dispatch({ type: 'run-file', lines: Array.from(lines), startLine })
     },
     pause(): void {
       dispatch({ type: 'pause' })

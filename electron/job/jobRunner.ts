@@ -27,13 +27,13 @@ export class JobRunner {
     return this.running
   }
 
-  start(lines: string[]): void {
+  start(lines: string[], startLine = 0): void {
     this.lines = lines
-    this.sentCount = 0
-    this.completedCount = 0
+    this.sentCount = startLine
+    this.completedCount = startLine
     this.running = true
     this.paused = false
-    this.state.setJobProgress({ running: true, paused: false, currentLine: 0, totalLines: lines.length })
+    this.state.setJobProgress({ running: true, paused: false, currentLine: startLine, totalLines: lines.length })
     this.pump()
   }
 
@@ -69,6 +69,7 @@ export class JobRunner {
     while (this.sentCount < this.lines.length) {
       const line = this.lines[this.sentCount]
       this.sentCount += 1
+      this.state.appendConsoleLine('tx', line)
       this.scheduler.enqueue(line, (result) => this.onLineComplete(result))
     }
   }

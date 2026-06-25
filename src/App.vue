@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '@/stores/appStore'
-import ConnectionPanel from '@/components/ConnectionPanel.vue'
-import StatusPanel from '@/components/StatusPanel.vue'
-import JobPanel from '@/components/JobPanel.vue'
-import ConsolePanel from '@/components/ConsolePanel.vue'
+import TopToolbar from '@/components/TopToolbar.vue'
+import LeftPanel from '@/components/LeftPanel.vue'
 import VisualizerPanel from '@/components/VisualizerPanel.vue'
-import JogPanel from '@/components/JogPanel.vue'
-import OscSettingsPanel from '@/components/OscSettingsPanel.vue'
+import ConsoleDrawer from '@/components/ConsoleDrawer.vue'
+import StatusRibbon from '@/components/StatusRibbon.vue'
+import SettingsDrawer from '@/components/SettingsDrawer.vue'
 
 const store = useAppStore()
 let disposeInit: (() => void) | null = null
+
+const settingsOpen = ref(false)
 
 onMounted(() => {
   disposeInit = store.init()
@@ -22,18 +23,18 @@ onUnmounted(() => {
 
 <template>
   <div class="app">
-    <header class="header">
-      <h1 class="logo">Gcode Tracer</h1>
-    </header>
-    <main class="main">
-      <ConnectionPanel />
-      <StatusPanel />
-      <JobPanel />
-      <ConsolePanel />
-      <VisualizerPanel />
-      <JogPanel />
-      <OscSettingsPanel />
-    </main>
+    <TopToolbar @toggle-settings="settingsOpen = !settingsOpen" />
+    <div class="body">
+      <LeftPanel />
+      <div class="content">
+        <VisualizerPanel />
+        <ConsoleDrawer />
+      </div>
+      <div v-if="settingsOpen" class="settingsAnchor">
+        <SettingsDrawer @close="settingsOpen = false" />
+      </div>
+    </div>
+    <StatusRibbon />
   </div>
 </template>
 
@@ -43,22 +44,21 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
 }
-.header {
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-}
-.logo {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-}
-.main {
+.body {
+  position: relative;
   flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: var(--space-4);
-  padding: var(--space-4);
-  align-content: start;
-  overflow-y: auto;
+  display: flex;
+  min-height: 0;
+}
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.settingsAnchor {
+  position: absolute;
+  right: 0;
+  top: 0;
 }
 </style>

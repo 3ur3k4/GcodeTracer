@@ -140,7 +140,7 @@ electron/
 - Renderer→Main: ユーザー操作をdispatchするのみ。
 - 全メッセージをスキーマ検証(zod)し、型不一致・不正値をMain側で確実に拒否する。
 
-**Renderer → Main(ユーザー操作のdispatch、例)**
+**Renderer → Main(ユーザー操作のdispatch)**
 
 ```ts
 type RendererToMainMessage =
@@ -149,10 +149,11 @@ type RendererToMainMessage =
   | { type: 'send-command'; command: string }
   | { type: 'jog'; x: number; y: number; z: number; stepSize: number }
   | { type: 'zero'; axis: 'X' | 'Y' | 'Z' }
+  | { type: 'goto-work-zero' }
   | { type: 'home' }
   | { type: 'unlock' }
   | { type: 'soft-reset' }
-  | { type: 'run-file'; lines: string[] }
+  | { type: 'run-file'; lines: string[]; startLine: number }  // startLine: 再開開始行（0=先頭）
   | { type: 'pause' }
   | { type: 'resume' }
   | { type: 'cancel' }
@@ -211,6 +212,8 @@ interface AppState {
 - ジョグ操作(XY/Z、ステップサイズ可変)、ホーミング、ソフトリセット、アンロック
 - 座標ゼロ設定(G10 L20)、ワークゼロへの移動
 - Gコードファイル読み込み・Character-Counting方式での送信・一時停止/再開/キャンセル・進捗表示
+- ジョブ途中停止からの指定行再開（`startLine` パラメータで再開位置を指定）
+- 新ファイル読み込み時に実行中ジョブを自動キャンセルしてリセット
 - Gコード可視化(ツールパス描画、ズーム/パン、現在位置表示)
 - OSC送信設定(IP/ポート/有効化)と位置情報送信
 
