@@ -10,6 +10,7 @@
   --warning: #c77a1f;
 
   --grid-line: #e0e0dc;
+  --rapid-path: #6b9bd2;
 
   --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -40,9 +41,10 @@
     --tp: #fafaf7;
     --ts: #9a9a9a;
     --accent: #0fd140;
-    --danger: #f2675c;
+    --danger: #e73427;
     --warning: #f5a623;
 
     --grid-line: #2e2e2e;
+    --rapid-path: #4a7fc1;
   }
 }
