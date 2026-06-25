@@ -14,7 +14,7 @@ import JogSection from '@/components/JogSection.vue'
 
 <style scoped>
 .panel {
-  width: 196px;
+  width: 230px;
   flex: none;
   display: flex;
   flex-direction: column;

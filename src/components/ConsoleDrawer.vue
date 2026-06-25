@@ -1,19 +1,28 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useIpc } from '@/composables/useIpc'
 import { ChevronDown, Send } from '@lucide/vue'
 import type { ConsoleLine } from '@shared/ipcContract'
 
+const emit = defineEmits<{ 'update:open': [value: boolean] }>()
+
 const store = useAppStore()
 const ipc = useIpc()
 
 const isOpen = ref(true)
+watch(isOpen, (val) => emit('update:open', val))
 const command = ref('')
 const logEl = ref<HTMLDivElement | null>(null)
 
 function isError(line: ConsoleLine): boolean {
   return line.direction === 'rx' && (line.text.startsWith('error:') || line.text.startsWith('ALARM:'))
+}
+
+const hasError = computed(() => store.console.lines.some(isError))
+
+function isOkOnly(line: ConsoleLine): boolean {
+  return line.direction === 'rx' && line.text.trim() === 'ok'
 }
 
 function prefix(line: ConsoleLine): string {
@@ -22,6 +31,22 @@ function prefix(line: ConsoleLine): string {
   if (line.direction === 'rx') return '< '
   return ''
 }
+
+// txコマンドに対応するokは表示しない。tx直後のokのみ折りたたむ。
+const filteredLines = computed(() => {
+  const lines = store.console.lines
+  const result: ConsoleLine[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (isOkOnly(line)) {
+      // 直前のtxが存在する場合はokを非表示（送信確認okは冗長）
+      const prev = result[result.length - 1]
+      if (prev && prev.direction === 'tx') continue
+    }
+    result.push(line)
+  }
+  return result
+})
 
 function send(): void {
   const trimmed = command.value.trim()
@@ -42,15 +67,15 @@ watch(
 <template>
   <div class="drawer" :class="{ open: isOpen }">
     <button class="header" @click="isOpen = !isOpen">
-      <span class="dot" />
+      <span class="dot" :class="{ errorDot: hasError }" />
       <span class="label">Console</span>
-      <ChevronDown class="chevron" :class="{ rotated: isOpen }" :size="15" :stroke-width="1.75" />
+      <ChevronDown class="chevron" :class="{ rotated: !isOpen }" :size="15" :stroke-width="1.75" />
     </button>
 
     <template v-if="isOpen">
       <div ref="logEl" class="log">
         <div
-          v-for="line in store.console.lines"
+          v-for="line in filteredLines"
           :key="line.id"
           class="logLine"
           :class="{ tx: line.direction === 'tx', rx: line.direction === 'rx' && !isError(line), error: isError(line), info: line.direction === 'info' }"
@@ -77,16 +102,11 @@ watch(
 
 <style scoped>
 .drawer {
-  flex: none;
-  height: 30px;
   display: flex;
   flex-direction: column;
   background-color: var(--surface);
   border-top: 1px solid var(--border);
   overflow: hidden;
-}
-.drawer.open {
-  height: 140px;
 }
 .header {
   flex: none;
@@ -104,6 +124,10 @@ watch(
   height: 6px;
   border-radius: 50%;
   background-color: var(--accent);
+  flex: none;
+}
+.dot.errorDot {
+  background-color: var(--danger);
 }
 .label {
   font-size: 11px;
@@ -126,6 +150,8 @@ watch(
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.65;
+  user-select: text;
+  cursor: text;
 }
 .logLine {
   white-space: pre-wrap;
