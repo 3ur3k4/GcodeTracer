@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
 import { gcodeToPath } from '@/lib/gcodeToPath'
+import { Frame, Group, SquareEqual } from '@lucide/vue'
+import AppSelect from '@/components/AppSelect.vue'
 
 const store = useAppStore()
 const gcodeFile = useGcodeFileStore()
@@ -13,12 +15,42 @@ const containerRef = ref<HTMLDivElement | null>(null)
 const toolPath = computed(() => gcodeToPath(gcodeFile.lines))
 const view = ref({ scale: 1, offsetX: 0, offsetY: 0 })
 const zoomPercent = computed(() => Math.round(view.value.scale * 100))
+const progressPercent = computed(() => {
+  if (store.job.totalLines === 0) return 0
+  return Math.round((store.job.currentLine / store.job.totalLines) * 100)
+})
+
+// 用紙ガイド線
+interface PaperSize { label: string; w: number; h: number }
+const PAPER_SIZES: PaperSize[] = [
+  { label: 'なし', w: 0, h: 0 },
+  { label: 'A3 (横)', w: 420, h: 297 },
+  { label: 'A3 (縦)', w: 297, h: 420 },
+  { label: 'A4 (横)', w: 297, h: 210 },
+  { label: 'A4 (縦)', w: 210, h: 297 },
+  { label: 'A5 (横)', w: 210, h: 148 },
+  { label: 'A5 (縦)', w: 148, h: 210 },
+  { label: 'カスタム', w: -1, h: -1 },
+]
+const paperOptions = PAPER_SIZES.map((p, i) => ({ value: i, label: p.label }))
+const selectedPaperIdx = ref(0)
+const customW = ref(200)
+const customH = ref(150)
+
+const activePaper = computed<PaperSize | null>(() => {
+  const p = PAPER_SIZES[selectedPaperIdx.value]
+  if (!p || p.w === 0) return null
+  if (p.w === -1) return { label: 'カスタム', w: customW.value, h: customH.value }
+  return p
+})
+const isCustomPaper = computed(() => PAPER_SIZES[selectedPaperIdx.value]?.w === -1)
 
 const MIN_GRID_PX = 40
 const PADDING_PX = 24
 let dragging = false
 let lastPointer = { x: 0, y: 0 }
 let resizeObserver: ResizeObserver | null = null
+const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
 function token(name: string): string {
   const canvas = canvasRef.value
@@ -46,6 +78,18 @@ function fitToView(): void {
     offsetX: canvas.width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale,
     offsetY: canvas.height / 2 + ((bounds.minY + bounds.maxY) / 2) * scale,
   }
+  draw()
+}
+
+function zoomToActual(): void {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  view.value = {
+    scale: 1,
+    offsetX: canvas.width / 2,
+    offsetY: canvas.height / 2,
+  }
+  draw()
 }
 
 function niceStep(rawStep: number): number {
@@ -141,6 +185,25 @@ function drawGrid(): void {
   }
 }
 
+function drawPaperGuide(ctx: CanvasRenderingContext2D): void {
+  const paper = activePaper.value
+  if (!paper) return
+  const [x0, y0] = toCanvas(0, 0)
+  const [x1, y1] = toCanvas(paper.w, paper.h)
+  ctx.save()
+  ctx.strokeStyle = token('--warning')
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([6, 4])
+  ctx.globalAlpha = 0.7
+  ctx.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0))
+  ctx.globalAlpha = 0.08
+  ctx.fillStyle = token('--warning')
+  ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0))
+  ctx.setLineDash([])
+  ctx.globalAlpha = 1
+  ctx.restore()
+}
+
 function draw(): void {
   const canvas = canvasRef.value
   const ctx = canvas?.getContext('2d')
@@ -148,9 +211,10 @@ function draw(): void {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   drawGrid()
+  drawPaperGuide(ctx)
 
-  const doneColor = token('--accent')
-  const pendingColor = token('--ts')
+  const drawColor = token('--accent')
+  const rapidColor = token('--rapid-path')
   const markerColor = token('--danger')
   const currentLine = store.job.currentLine
 
@@ -161,11 +225,20 @@ function draw(): void {
     ctx.beginPath()
     ctx.moveTo(x1, y1)
     ctx.lineTo(x2, y2)
-    ctx.globalAlpha = done ? 0.9 : 0.4
-    ctx.strokeStyle = done ? doneColor : pendingColor
-    ctx.lineWidth = 1.5
+    if (seg.rapid) {
+      ctx.globalAlpha = done ? 0.7 : 0.25
+      ctx.strokeStyle = rapidColor
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 4])
+    } else {
+      ctx.globalAlpha = done ? 0.9 : 0.4
+      ctx.strokeStyle = drawColor
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([])
+    }
     ctx.stroke()
   }
+  ctx.setLineDash([])
   ctx.globalAlpha = 1
 
   const [px, py] = toCanvas(store.grbl.wpos.x, store.grbl.wpos.y)
@@ -201,7 +274,7 @@ function onWheel(event: WheelEvent): void {
   const rect = canvas.getBoundingClientRect()
   const mouseX = event.clientX - rect.left
   const mouseY = event.clientY - rect.top
-  const zoomFactor = event.deltaY < 0 ? 1.1 : 1 / 1.1
+  const zoomFactor = event.deltaY < 0 ? 1.06 : 1 / 1.06
   const worldX = (mouseX - view.value.offsetX) / view.value.scale
   const worldY = -(mouseY - view.value.offsetY) / view.value.scale
   const newScale = view.value.scale * zoomFactor
@@ -233,12 +306,10 @@ function onPointerUp(): void {
 
 function onDoubleClick(): void {
   fitToView()
-  draw()
 }
 
 watch(toolPath, () => {
   fitToView()
-  draw()
 })
 
 // wpos参照の差し替えではなく実際の値変化・進捗変化のみで再描画する
@@ -247,9 +318,12 @@ watch(
   () => draw(),
 )
 
+watch(activePaper, () => draw())
+
 onMounted(() => {
   resizeObserver = new ResizeObserver(resizeCanvas)
   if (containerRef.value) resizeObserver.observe(containerRef.value)
+  darkModeQuery.addEventListener('change', draw)
   resizeCanvas()
   fitToView()
   draw()
@@ -257,6 +331,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
+  darkModeQuery.removeEventListener('change', draw)
 })
 </script>
 
@@ -279,6 +354,30 @@ onBeforeUnmount(() => {
       <span class="overlayLabel">Zoom</span>
       <span class="overlayValue">{{ zoomPercent }}%</span>
     </div>
+    <div class="viewControls">
+      <button class="viewButton iconOnly" title="ズームを100%にリセット" @click="zoomToActual">
+        <SquareEqual :size="15" :stroke-width="1.75" />
+      </button>
+      <button class="viewButton iconOnly" title="ファイルの描画範囲にフィット (ダブルクリックでも可)" @click="fitToView">
+        <Group :size="15" :stroke-width="1.75" />
+      </button>
+      <div class="paperControl">
+        <Frame :size="14" :stroke-width="1.75" class="paperIcon" />
+        <AppSelect v-model="selectedPaperIdx" :options="paperOptions" class="paperSelect" />
+        <template v-if="isCustomPaper">
+          <input v-model.number="customW" class="customSizeInput" type="number" min="1" step="1" @change="draw" />
+          <span class="customSizeX">×</span>
+          <input v-model.number="customH" class="customSizeInput" type="number" min="1" step="1" @change="draw" />
+          <span class="customSizeUnit">mm</span>
+        </template>
+      </div>
+    </div>
+    <div v-if="store.job.running" class="progressOverlay">
+      <div class="progressTrack">
+        <div class="progressFill" :style="{ width: `${progressPercent}%` }" />
+      </div>
+      <span class="progressText">{{ progressPercent }}%</span>
+    </div>
   </div>
 </template>
 
@@ -294,7 +393,7 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
-  cursor: grab;
+  cursor: move;
 }
 .overlay {
   position: absolute;
@@ -303,11 +402,12 @@ canvas {
   display: flex;
   align-items: center;
   gap: 6px;
+  height: 28px;
   background-color: var(--surface);
   opacity: 0.88;
   border: 1px solid var(--border);
   border-radius: 5px;
-  padding: 6px 10px;
+  padding: 0 10px;
   font-family: var(--font-mono);
   font-size: 12px;
   pointer-events: none;
@@ -317,5 +417,121 @@ canvas {
 }
 .overlayValue {
   color: var(--tp);
+}
+.viewControls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.viewButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--ts);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  opacity: 0.88;
+}
+.viewButton:hover {
+  background-color: var(--surface2);
+  color: var(--tp);
+  opacity: 1;
+}
+.viewButton.iconOnly {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+.paperControl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  opacity: 0.88;
+}
+.paperControl:hover {
+  opacity: 1;
+}
+.paperControl :deep(.trigger) {
+  height: 22px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 1px;
+  border: none;
+  background-color: transparent;
+}
+.paperIcon {
+  color: var(--warning);
+  flex: none;
+}
+.paperSelect {
+  min-width: 110px;
+}
+.customSizeInput {
+  width: 44px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background-color: var(--surface2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--tp);
+  padding: 0 4px;
+  text-align: center;
+}
+.customSizeInput::-webkit-inner-spin-button,
+.customSizeInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+.customSizeX,
+.customSizeUnit {
+  font-size: 11px;
+  color: var(--ts);
+}
+.progressOverlay {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  opacity: 0.9;
+}
+.progressTrack {
+  width: 120px;
+  height: 3px;
+  background-color: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background-color: var(--accent);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+.progressText {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--tp);
+  min-width: 32px;
+  text-align: right;
 }
 </style>
