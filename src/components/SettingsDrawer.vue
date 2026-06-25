@@ -15,10 +15,21 @@ const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400]
 const POLL_INTERVALS = [10, 20, 50, 100, 200, 500, 1000]
 
 const ports = ref<PortInfo[]>([])
-const selectedPath = ref('')
-const baudRate = ref(115200)
-const pollIntervalMs = ref(250)
 const isRefreshing = ref(false)
+
+// serialForm はストアで管理 — Drawer を閉じても値が保持される
+const selectedPath = computed({
+  get: () => store.serialForm.path,
+  set: (v) => { store.serialForm.path = v },
+})
+const baudRate = computed({
+  get: () => store.serialForm.baudRate,
+  set: (v) => { store.serialForm.baudRate = v },
+})
+const pollIntervalMs = computed({
+  get: () => store.serialForm.pollIntervalMs,
+  set: (v) => { store.serialForm.pollIntervalMs = v },
+})
 
 const oscForm = reactive({ ip: store.osc.ip, port: store.osc.port })
 

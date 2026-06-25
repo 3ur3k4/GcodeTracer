@@ -16,6 +16,9 @@ export const useAppStore = defineStore('app', () => {
   const osc = reactive<AppState['osc']>(structuredClone(initialAppState.osc))
   const consoleState = reactive<AppState['console']>(structuredClone(initialAppState.console))
 
+  // Renderer-only serial form state — persists across Settings Drawer open/close cycles
+  const serialForm = reactive({ path: '', baudRate: 115200, pollIntervalMs: 100 })
+
   let unsubscribe: (() => void) | null = null
 
   function applyState(next: AppState): void {
@@ -37,5 +40,5 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  return { connection, grbl, job, osc, console: consoleState, init }
+  return { connection, grbl, job, osc, console: consoleState, serialForm, init }
 })
