@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useIpc } from '@/composables/useIpc'
-import { X } from '@lucide/vue'
+import { RefreshCw, X } from '@lucide/vue'
 import type { PortInfo } from '@shared/ipcContract'
+import AppSelect from '@/components/AppSelect.vue'
 
 defineEmits<{ close: [] }>()
 
@@ -11,20 +12,48 @@ const store = useAppStore()
 const ipc = useIpc()
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400]
-
-const POLL_INTERVALS = [100, 200, 250, 500, 1000]
+const POLL_INTERVALS = [10, 20, 50, 100, 200, 500, 1000]
 
 const ports = ref<PortInfo[]>([])
 const selectedPath = ref('')
 const baudRate = ref(115200)
 const pollIntervalMs = ref(250)
+const isRefreshing = ref(false)
 
 const oscForm = reactive({ ip: store.osc.ip, port: store.osc.port })
 
+function isArduinoPort(port: PortInfo): boolean {
+  return !!(port.manufacturer?.toLowerCase().includes('arduino') || port.manufacturer?.toLowerCase().includes('wch'))
+}
+
+const sortedPorts = computed(() => {
+  return [...ports.value].sort((a, b) => {
+    const aIsArduino = isArduinoPort(a) ? 0 : 1
+    const bIsArduino = isArduinoPort(b) ? 0 : 1
+    return aIsArduino - bIsArduino
+  })
+})
+
+const portOptions = computed(() =>
+  sortedPorts.value.map((p) => ({
+    value: p.path,
+    label: `${p.path}${p.manufacturer ? ` (${p.manufacturer})` : ''}`,
+    badge: isArduinoPort(p) ? '★' : undefined,
+  })),
+)
+
+const baudOptions = BAUD_RATES.map((r) => ({ value: r, label: String(r) }))
+const pollOptions = POLL_INTERVALS.map((ms) => ({ value: ms, label: `${ms} ms` }))
+
 async function refreshPorts(): Promise<void> {
-  ports.value = await ipc.listPorts()
-  if (!selectedPath.value && ports.value.length > 0) {
-    selectedPath.value = ports.value[0].path
+  isRefreshing.value = true
+  try {
+    ports.value = await ipc.listPorts()
+    if (!selectedPath.value && sortedPorts.value.length > 0) {
+      selectedPath.value = sortedPorts.value[0].path
+    }
+  } finally {
+    isRefreshing.value = false
   }
 }
 
@@ -59,29 +88,31 @@ onMounted(refreshPorts)
     <div class="columns">
       <section class="column">
         <h3 class="columnTitle">Serial</h3>
-        <label class="field">
-          <span class="fieldLabel">Port</span>
-          <select v-model="selectedPath" class="select" :disabled="store.connection.connected">
-            <option v-for="port in ports" :key="port.path" :value="port.path">
-              {{ port.path }}{{ port.manufacturer ? ` (${port.manufacturer})` : '' }}
-            </option>
-          </select>
-        </label>
-        <label class="field">
+        <div class="field">
+          <div class="fieldLabelRow">
+            <span class="fieldLabel">Port</span>
+            <button class="reloadButton" :class="{ spinning: isRefreshing }" :disabled="store.connection.connected || isRefreshing" title="ポート一覧を更新" @click="refreshPorts">
+              <RefreshCw :size="12" :stroke-width="1.75" />
+            </button>
+          </div>
+          <AppSelect v-model="selectedPath" :options="portOptions" :disabled="store.connection.connected" />
+        </div>
+        <div class="field">
           <span class="fieldLabel">Baud rate</span>
-          <select v-model.number="baudRate" class="select" :disabled="store.connection.connected">
-            <option v-for="rate in BAUD_RATES" :key="rate" :value="rate">{{ rate }}</option>
-          </select>
-        </label>
-        <button class="connectButton" :disabled="!selectedPath && !store.connection.connected" @click="toggleConnection">
+          <AppSelect v-model="baudRate" :options="baudOptions" :disabled="store.connection.connected" />
+        </div>
+        <button
+          class="connectButton"
+          :class="{ disconnect: store.connection.connected }"
+          :disabled="!selectedPath && !store.connection.connected"
+          @click="toggleConnection"
+        >
           {{ store.connection.connected ? 'Disconnect' : 'Connect' }}
         </button>
-        <label class="field">
+        <div class="field">
           <span class="fieldLabel">Poll interval</span>
-          <select v-model.number="pollIntervalMs" class="select" :disabled="!store.connection.connected" @change="applyPollInterval">
-            <option v-for="ms in POLL_INTERVALS" :key="ms" :value="ms">{{ ms }} ms</option>
-          </select>
-        </label>
+          <AppSelect v-model="pollIntervalMs" :options="pollOptions" :disabled="!store.connection.connected" @update:model-value="applyPollInterval" />
+        </div>
       </section>
 
       <section class="column">
@@ -108,6 +139,7 @@ onMounted(refreshPorts)
 <style scoped>
 .drawer {
   position: relative;
+  width: 240px;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
   border-left: 1px solid var(--border);
@@ -131,14 +163,18 @@ onMounted(refreshPorts)
   color: var(--tp);
 }
 .columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
 }
 .column {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+.column + .column {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 .columnTitle {
   margin: 0 0 2px;
@@ -169,6 +205,37 @@ onMounted(refreshPorts)
 .input:disabled {
   opacity: 0.5;
 }
+.fieldLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reloadButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--ts);
+  padding: 0;
+}
+.reloadButton:hover:not(:disabled) {
+  color: var(--tp);
+  background-color: var(--surface2);
+}
+.reloadButton:disabled {
+  opacity: 0.3;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.reloadButton.spinning svg {
+  animation: spin 0.6s linear infinite;
+}
 .connectButton {
   width: 100%;
   margin-top: var(--space-1);
@@ -177,8 +244,11 @@ onMounted(refreshPorts)
   border: none;
   border-radius: var(--radius-sm);
   background-color: var(--accent);
-  color: #111111;
+  color: var(--surface);
   font-weight: 600;
+}
+.connectButton.disconnect {
+  background-color: var(--danger);
 }
 .connectButton:disabled {
   opacity: 0.5;
