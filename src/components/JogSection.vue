@@ -14,15 +14,30 @@ import {
   ChevronDown,
   ChevronUp,
   Crosshair,
-  Home,
-  LockOpen,
 } from '@lucide/vue'
+import AppTooltip from '@/components/AppTooltip.vue'
 
 const store = useAppStore()
 const ipc = useIpc()
 
 const STEP_SIZES = [0.1, 1, 10, 100]
 const stepSize = ref(1)
+const customStepInput = ref('')
+const isCustom = ref(false)
+
+function selectPreset(size: number): void {
+  stepSize.value = size
+  isCustom.value = false
+  customStepInput.value = ''
+}
+
+function applyCustomStep(): void {
+  const val = parseFloat(customStepInput.value)
+  if (val > 0) {
+    stepSize.value = val
+    isCustom.value = true
+  }
+}
 
 const jogDisabled = computed(() => !store.connection.connected || store.grbl.machineState === 'Alarm')
 
@@ -36,19 +51,19 @@ function jog(x: number, y: number, z: number): void {
   <div class="section">
     <div class="pads">
       <div class="xyPad" :class="{ disabled: jogDisabled }">
-        <button class="padButton" aria-label="左上" @click="jog(-1, 1, 0)"><ArrowUpLeft :size="16" :stroke-width="1.75" /></button>
-        <button class="padButton" aria-label="上" @click="jog(0, 1, 0)"><ArrowUp :size="16" :stroke-width="1.75" /></button>
-        <button class="padButton" aria-label="右上" @click="jog(1, 1, 0)"><ArrowUpRight :size="16" :stroke-width="1.75" /></button>
-        <button class="padButton" aria-label="左" @click="jog(-1, 0, 0)"><ArrowLeft :size="16" :stroke-width="1.75" /></button>
+        <AppTooltip :text="`X-${stepSize} Y+${stepSize}`"><button class="padButton" aria-label="左上" @click="jog(-1, 1, 0)"><ArrowUpLeft :size="20" :stroke-width="1.5" /></button></AppTooltip>
+        <AppTooltip :text="`Y+${stepSize}`"><button class="padButton" aria-label="上" @click="jog(0, 1, 0)"><ArrowUp :size="20" :stroke-width="1.5" /></button></AppTooltip>
+        <AppTooltip :text="`X+${stepSize} Y+${stepSize}`"><button class="padButton" aria-label="右上" @click="jog(1, 1, 0)"><ArrowUpRight :size="20" :stroke-width="1.5" /></button></AppTooltip>
+        <AppTooltip :text="`X-${stepSize}`"><button class="padButton" aria-label="左" @click="jog(-1, 0, 0)"><ArrowLeft :size="20" :stroke-width="1.5" /></button></AppTooltip>
         <span class="padCenter" aria-hidden="true"><span class="centerDot" /></span>
-        <button class="padButton" aria-label="右" @click="jog(1, 0, 0)"><ArrowRight :size="16" :stroke-width="1.75" /></button>
-        <button class="padButton" aria-label="左下" @click="jog(-1, -1, 0)"><ArrowDownLeft :size="16" :stroke-width="1.75" /></button>
-        <button class="padButton" aria-label="下" @click="jog(0, -1, 0)"><ArrowDown :size="16" :stroke-width="1.75" /></button>
-        <button class="padButton" aria-label="右下" @click="jog(1, -1, 0)"><ArrowDownRight :size="16" :stroke-width="1.75" /></button>
+        <AppTooltip :text="`X+${stepSize}`"><button class="padButton" aria-label="右" @click="jog(1, 0, 0)"><ArrowRight :size="20" :stroke-width="1.5" /></button></AppTooltip>
+        <AppTooltip :text="`X-${stepSize} Y-${stepSize}`"><button class="padButton" aria-label="左下" @click="jog(-1, -1, 0)"><ArrowDownLeft :size="20" :stroke-width="1.5" /></button></AppTooltip>
+        <AppTooltip :text="`Y-${stepSize}`"><button class="padButton" aria-label="下" @click="jog(0, -1, 0)"><ArrowDown :size="20" :stroke-width="1.5" /></button></AppTooltip>
+        <AppTooltip :text="`X+${stepSize} Y-${stepSize}`"><button class="padButton" aria-label="右下" @click="jog(1, -1, 0)"><ArrowDownRight :size="20" :stroke-width="1.5" /></button></AppTooltip>
       </div>
       <div class="zPad" :class="{ disabled: jogDisabled }">
-        <button class="padButton" aria-label="Z+" @click="jog(0, 0, 1)"><ChevronUp :size="16" :stroke-width="1.75" /></button>
-        <button class="padButton" aria-label="Z-" @click="jog(0, 0, -1)"><ChevronDown :size="16" :stroke-width="1.75" /></button>
+        <AppTooltip :text="`Z+${stepSize}`"><button class="padButton" aria-label="Z+" @click="jog(0, 0, 1)"><ChevronUp :size="20" :stroke-width="1.5" /></button></AppTooltip>
+        <AppTooltip :text="`Z-${stepSize}`"><button class="padButton" aria-label="Z-" @click="jog(0, 0, -1)"><ChevronDown :size="20" :stroke-width="1.5" /></button></AppTooltip>
       </div>
     </div>
 
@@ -58,23 +73,31 @@ function jog(x: number, y: number, z: number): void {
         v-for="size in STEP_SIZES"
         :key="size"
         class="stepButton"
-        :class="{ active: stepSize === size }"
-        @click="stepSize = size"
+        :class="{ active: !isCustom && stepSize === size }"
+        @click="selectPreset(size)"
       >
         {{ size }}
       </button>
+      <input
+        v-model="customStepInput"
+        class="stepInput"
+        :class="{ active: isCustom }"
+        type="number"
+        min="0.001"
+        step="any"
+        placeholder="…"
+        @change="applyCustomStep"
+        @keydown.enter="applyCustomStep"
+      />
     </div>
 
     <div class="actionRow">
-      <button class="actionButton warningButton" :disabled="!store.connection.connected" aria-label="アンロック" @click="ipc.unlock()">
-        <LockOpen :size="16" :stroke-width="1.75" />
-      </button>
-      <button class="actionButton" :disabled="!store.connection.connected" aria-label="ホーミング" @click="ipc.home()">
-        <Home :size="16" :stroke-width="1.75" />
-      </button>
-      <button class="actionButton" :disabled="!store.connection.connected" aria-label="ワークゼロへ移動" @click="ipc.gotoWorkZero()">
-        <Crosshair :size="16" :stroke-width="1.75" />
-      </button>
+      <AppTooltip text="ワークゼロへ移動" sub="G0 X0 Y0">
+        <button class="actionButton" :disabled="!store.connection.connected" aria-label="ワークゼロへ移動" @click="ipc.gotoWorkZero()">
+          <Crosshair :size="20" :stroke-width="1.5" />
+          <span class="actionLabel">Work Zero</span>
+        </button>
+      </AppTooltip>
     </div>
   </div>
 </template>
@@ -88,16 +111,15 @@ function jog(x: number, y: number, z: number): void {
   gap: var(--space-3);
 }
 .pads {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 3px;
   align-items: center;
-  gap: var(--space-2);
 }
 .xyPad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 3px;
-  flex: 1;
 }
 .xyPad.disabled,
 .zPad.disabled {
@@ -108,6 +130,7 @@ function jog(x: number, y: number, z: number): void {
   display: flex;
   align-items: center;
   justify-content: center;
+  aspect-ratio: 1;
 }
 .centerDot {
   width: 5px;
@@ -118,15 +141,16 @@ function jog(x: number, y: number, z: number): void {
 .zPad {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  justify-content: space-between;
+  align-self: stretch;
 }
 .padButton {
   width: 100%;
-  height: 36px;
+  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background-color: var(--surface2);
   color: var(--tp);
@@ -162,6 +186,27 @@ function jog(x: number, y: number, z: number): void {
   border-color: var(--ts);
   color: var(--tp);
 }
+.stepInput {
+  width: 44px;
+  height: 26px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background-color: transparent;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ts);
+  padding: 0 4px;
+  text-align: center;
+}
+.stepInput.active {
+  border-color: var(--ts);
+  color: var(--tp);
+  background-color: var(--surface2);
+}
+.stepInput::-webkit-inner-spin-button,
+.stepInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
 .actionRow {
   display: flex;
   gap: 4px;
@@ -172,6 +217,7 @@ function jog(x: number, y: number, z: number): void {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   border-radius: 4px;
   border: 1px solid var(--border);
   background-color: transparent;
@@ -184,8 +230,7 @@ function jog(x: number, y: number, z: number): void {
   opacity: 0.3;
   pointer-events: none;
 }
-.warningButton {
-  border-color: var(--warning);
-  color: var(--warning);
+.actionLabel {
+  font-size: 11px;
 }
 </style>

@@ -52,7 +52,7 @@ function zeroAll(): void {
 }
 .grid {
   display: grid;
-  grid-template-columns: 14px 1fr 1fr;
+  grid-template-columns: 14px calc((100% - 12px) / 2 - 14px) 1fr;
   gap: 4px;
   align-items: baseline;
 }
@@ -65,6 +65,7 @@ function zeroAll(): void {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ts);
+  padding-left: 4px;
 }
 .value {
   font-family: var(--font-mono);
