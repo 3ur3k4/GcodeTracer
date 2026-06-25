@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
 import { useIpc } from '@/composables/useIpc'
-import { FolderOpen, Pause, Play, Settings, Square, TriangleAlert } from '@lucide/vue'
+import { FolderOpen, Home, Lock, LockOpen, Pause, Play, Rabbit, Settings, Square, TriangleAlert } from '@lucide/vue'
+import AppTooltip from '@/components/AppTooltip.vue'
 
 defineEmits<{ 'toggle-settings': [] }>()
 
@@ -35,6 +36,7 @@ watch(
 )
 const pauseActive = computed(() => store.grbl.machineState === 'Run')
 const stopActive = computed(() => store.grbl.machineState === 'Run' || store.grbl.machineState === 'Hold')
+const isLocked = computed(() => store.grbl.machineState === 'Alarm')
 
 const progressPercent = computed(() => {
   if (store.job.totalLines === 0) return 0
@@ -80,26 +82,58 @@ function stop(): void {
 
 <template>
   <header class="toolbar">
-    <button class="iconButton" aria-label="ファイルを開く" @click="openFile">
-      <FolderOpen :size="17" :stroke-width="1.75" />
-    </button>
+    <div class="logoArea" aria-hidden="true">
+      <Rabbit :size="22" :stroke-width="1.5" />
+    </div>
+    <AppTooltip text="GCodeファイルを開く">
+      <button class="iconButton" aria-label="ファイルを開く" @click="openFile">
+        <FolderOpen :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
     <input ref="fileInput" class="hiddenInput" type="file" accept=".gcode,.nc,.ngc,.txt" @change="onFileChange" />
-
-    <button class="iconButton runButton" aria-label="実行" :disabled="!runActive" @click="runOrResume">
-      <Play :size="17" :stroke-width="1.75" />
-    </button>
-    <button class="iconButton" aria-label="一時停止" :disabled="!pauseActive" @click="pause">
-      <Pause :size="17" :stroke-width="1.75" />
-    </button>
-    <button class="iconButton" aria-label="停止" :disabled="!stopActive" @click="stop">
-      <Square :size="17" :stroke-width="1.75" />
-    </button>
+    <AppTooltip text="実行 / 再開">
+      <button class="iconButton runButton" aria-label="実行" :disabled="!runActive" @click="runOrResume">
+        <Play :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
+    <AppTooltip text="一時停止" sub="! (Feed Hold)">
+      <button class="iconButton" aria-label="一時停止" :disabled="!pauseActive" @click="pause">
+        <Pause :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
+    <AppTooltip text="停止 (キャンセル)">
+      <button class="iconButton" aria-label="停止" :disabled="!stopActive" @click="stop">
+        <Square :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
 
     <div class="separator" />
 
-    <button class="iconButton dangerButton" aria-label="ソフトリセット" @click="ipc.softReset()">
-      <TriangleAlert :size="17" :stroke-width="1.75" />
-    </button>
+    <AppTooltip text="ホーミング" sub="$H">
+      <button class="iconButton" :disabled="!store.connection.connected" aria-label="ホーミング ($H)" @click="ipc.home()">
+        <Home :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
+    <AppTooltip :text="isLocked ? 'アンロック (Alarm状態を解除)' : 'ロック解除済み'" :sub="isLocked ? '$X' : undefined">
+      <button
+        class="iconButton"
+        :class="{ warningButton: isLocked }"
+        :disabled="!store.connection.connected"
+        :aria-label="isLocked ? 'アンロック ($X)' : 'ロック解除済み'"
+        @click="isLocked ? ipc.unlock() : undefined"
+      >
+        <Lock v-if="isLocked" :size="17" :stroke-width="1.75" />
+        <LockOpen v-else :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
+
+    <div class="separator" />
+
+    <AppTooltip text="ソフトリセット" sub="Ctrl-X">
+      <button class="iconButton dangerButton" aria-label="ソフトリセット (Ctrl-X)" @click="ipc.softReset()">
+        <TriangleAlert :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
 
     <div class="spacer" />
 
@@ -112,12 +146,14 @@ function stop(): void {
       <div class="progressTrack">
         <div class="progressFill" :style="{ width: `${progressPercent * 100}%` }" />
       </div>
-      <span class="progressLabel">{{ store.job.currentLine }} / {{ store.job.totalLines }}</span>
+      <span class="progressLabel">{{ Math.round(progressPercent * 100) }}% ({{ store.job.currentLine }} / {{ store.job.totalLines }})</span>
     </div>
 
-    <button class="iconButton settingsButton" aria-label="設定" @click="$emit('toggle-settings')">
-      <Settings :size="17" :stroke-width="1.75" />
-    </button>
+    <AppTooltip text="設定">
+      <button class="iconButton settingsButton" aria-label="設定" @click="$emit('toggle-settings')">
+        <Settings :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
   </header>
 </template>
 
@@ -127,17 +163,26 @@ function stop(): void {
   flex: none;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-2);
+  gap: var(--space-2);
+  padding: 0 var(--space-2) 0 0;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+.logoArea {
+  width: 45px;
+  height: 100%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ts);
 }
 .hiddenInput {
   display: none;
 }
 .iconButton {
   width: 36px;
-  height: 34px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,18 +202,32 @@ function stop(): void {
   pointer-events: none;
 }
 .runButton {
+  background-color: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--surface);
+}
+.runButton:hover:not(:disabled) {
+  background-color: var(--accent);
+  filter: brightness(1.12);
 }
 .dangerButton {
+  background-color: var(--danger);
   border-color: var(--danger);
-  color: var(--danger);
+  color: var(--surface);
+}
+.dangerButton:hover:not(:disabled) {
+  background-color: var(--danger);
+  filter: brightness(1.15);
+}
+.warningButton {
+  border-color: var(--warning);
+  color: var(--warning);
 }
 .separator {
   width: 1px;
   height: 24px;
   background-color: var(--border);
-  margin: 0 var(--space-1);
+  flex: none;
 }
 .spacer {
   flex: 1;
