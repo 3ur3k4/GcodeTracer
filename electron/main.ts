@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { app, BrowserWindow } from 'electron'
+import { IPC_CHANNELS } from '../shared/ipcContract'
 import { createApp, type App } from './app'
 import { SerialTransport } from './serial/transport'
 
@@ -16,6 +17,8 @@ function createWindow(): void {
     width: 1280,
     height: 800,
     title: 'Gcode Tracer',
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 12, y: 15 },
     webPreferences: {
       preload: path.join(MAIN_DIST, 'preload.js'),
       contextIsolation: true,
@@ -32,6 +35,8 @@ function createWindow(): void {
 
   runningApp = createApp({ win, createTransport: () => new SerialTransport() })
 
+  win.on('enter-full-screen', () => win?.webContents.send(IPC_CHANNELS.fullscreenChanged, true))
+  win.on('leave-full-screen', () => win?.webContents.send(IPC_CHANNELS.fullscreenChanged, false))
   win.on('closed', () => {
     win = null
   })

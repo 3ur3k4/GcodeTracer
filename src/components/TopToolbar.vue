@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
 import { useIpc } from '@/composables/useIpc'
-import { FolderOpen, Home, Lock, LockOpen, Pause, Play, Rabbit, Settings, Square, TriangleAlert } from '@lucide/vue'
+import { FolderOpen, Home, Lock, LockOpen, Pause, Play, Settings, Square, TriangleAlert } from '@lucide/vue'
 import AppTooltip from '@/components/AppTooltip.vue'
 
 defineEmits<{ 'toggle-settings': [] }>()
+
+const isFullscreen = ref(false)
+let disposeFullscreen: (() => void) | null = null
+onMounted(() => {
+  disposeFullscreen = window.api.onFullscreen((v) => { isFullscreen.value = v })
+})
+onUnmounted(() => {
+  disposeFullscreen?.()
+})
 
 const store = useAppStore()
 const gcodeFile = useGcodeFileStore()
@@ -82,9 +91,8 @@ function stop(): void {
 
 <template>
   <header class="toolbar">
-    <div class="logoArea" aria-hidden="true">
-      <Rabbit :size="22" :stroke-width="1.5" />
-    </div>
+    <span class="appName" :class="{ fullscreen: isFullscreen }">Gcode Tracer</span>
+    <div class="separator" />
     <AppTooltip text="GCodeファイルを開く">
       <button class="iconButton" aria-label="ファイルを開く" @click="openFile">
         <FolderOpen :size="17" :stroke-width="1.75" />
@@ -167,15 +175,25 @@ function stop(): void {
   padding: 0 var(--space-2) 0 0;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
 }
-.logoArea {
-  width: 45px;
-  height: 100%;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ts);
+.toolbar :deep(button),
+.toolbar :deep(input) {
+  -webkit-app-region: no-drag;
+}
+.appName {
+  padding-left: 100px;
+  padding-right: 21.5px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.appName.fullscreen {
+  padding: 0;
+  width: 221px;
+  text-align: center;
 }
 .hiddenInput {
   display: none;

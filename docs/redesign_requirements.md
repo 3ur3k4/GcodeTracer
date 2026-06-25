@@ -136,9 +136,10 @@ electron/
 
 ### 6.4 IPC契約
 
-- Main→Renderer: state.tsの状態を1本のチャンネルでpush配信する(複数イベント種別をコンポーネント側で個別購読する形は採用しない)。
+- Main→Renderer: state.tsの状態を1本のチャンネル(`stateChanged`)でpush配信する(複数イベント種別をコンポーネント側で個別購読する形は採用しない)。
 - Renderer→Main: ユーザー操作をdispatchするのみ。
 - 全メッセージをスキーマ検証(zod)し、型不一致・不正値をMain側で確実に拒否する。
+- 機械状態に属さないウィンドウイベント（フルスクリーン切り替えなど）は専用チャンネルで個別push可。現在実装済み: `fullscreenChanged`（`boolean`）。
 
 **Renderer → Main(ユーザー操作のdispatch)**
 

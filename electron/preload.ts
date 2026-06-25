@@ -17,6 +17,11 @@ const api = {
   listPorts(): Promise<PortInfo[]> {
     return ipcRenderer.invoke(IPC_CHANNELS.listPorts)
   },
+  onFullscreen(callback: (isFullscreen: boolean) => void): () => void {
+    const listener = (_event: Electron.IpcRendererEvent, value: boolean) => callback(value)
+    ipcRenderer.on(IPC_CHANNELS.fullscreenChanged, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.fullscreenChanged, listener)
+  },
 }
 
 export type GcodeTracerApi = typeof api

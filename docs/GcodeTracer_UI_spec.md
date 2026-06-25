@@ -28,6 +28,13 @@
 - Visualizer はLeft Panel・Top Toolbar・Status Ribbonを除いた残余領域をすべて占有する
 - Console Drawer は Visualizer の下端に吸着する形で開閉する
 
+**ウィンドウクロム（macOS）**
+
+- `titleBarStyle: 'hiddenInset'`・`trafficLightPosition: { x: 12, y: 15 }` を使用し、ネイティブタイトルバーを非表示にしてコンテンツをウィンドウ上端まで広げる
+- トラフィックライトボタンは Top Toolbar に垂直中央揃えで重なる
+- Top Toolbar に `-webkit-app-region: drag` を設定してドラッグ移動を可能にする。toolbar 内の `<button>` / `<input>` には `no-drag` を付与してクリックを阻害しない
+- フルスクリーン時はトラフィックライトが消えるため、Main process の `enter-full-screen` / `leave-full-screen` イベントを `IPC_CHANNELS.fullscreenChanged` チャンネルで Renderer に通知し、アプリ名の位置を切り替える
+
 ### 1.2 重ね合わせ要素
 
 - **Settings Drawer**: Toolbar右端・Visualizer上端に `position: absolute` で表示（右端吸着）
@@ -89,7 +96,8 @@
 
 | 要素 | アイコン / 内容 | 活性条件 | 動作 |
 |---|---|---|---|
-| ロゴエリア | `Rabbit`（仮）・`--ts` color | — | クリック不可・幅 45px・高さ 100% |
+| アプリ名 | `"Gcode Tracer"` テキスト・16px bold | — | クリック不可。通常時は `padding-left: 100px`（トラフィックライト分の余白）+ 右 padding でセパレーターの位置を調整。フルスクリーン時は padding をリセットし `width: 230px; text-align: center` でサイドパネル上に中央揃え |
+| — | セパレーター (1px × 24px) | — | アプリ名の直後。Left Panel 幅(230px)に揃う位置 |
 | Open File | `FolderOpen` | 常時 | ファイルピッカーを開く |
 | Run / Resume | `Play` | 接続済み かつ (一時停止中 または (未実行 かつ ファイル読込済)) | 実行開始 or 一時停止から再開 |
 | Pause | `Pause` | `machineState === 'Run'` | Feed Hold |

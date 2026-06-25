@@ -124,4 +124,5 @@ export const IPC_CHANNELS = {
   dispatch: 'gcode-tracer:dispatch',
   stateChanged: 'gcode-tracer:state-changed',
   listPorts: 'gcode-tracer:list-ports',
+  fullscreenChanged: 'gcode-tracer:fullscreen-changed',
 } as const
