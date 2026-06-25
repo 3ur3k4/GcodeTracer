@@ -267,7 +267,7 @@ interface AppState {
 | `--color-text-primary` | `#191919` | `#FAFAF7` | 主要テキスト |
 | `--color-text-secondary` | `#6E6E6E` | `#9A9A9A` | 補助テキスト・ラベル |
 | `--color-border` | `#DEDEDA` | `#3A3A3A` | 区切り線・枠線 |
-| `--color-danger` | `#D92D20` | `#F2675C` | GRBL Alarm状態・エラー表示 |
+| `--color-danger` | `#D92D20` | `#E73427` | GRBL Alarm状態・エラー表示 |
 | `--color-warning` | `#C77A1F` | `#F5A623` | GRBL Hold状態・警告表示 |
 
 - GRBLの状態表示は `Idle`=ニュートラル(secondaryテキスト相当)、`Run`=`--color-accent`、`Hold`=`--color-warning`、`Alarm`=`--color-danger` に対応させる案。

@@ -17,14 +17,14 @@
 │          │                                  │
 │   Left   │        Visualizer                │
 │   Panel  │                                  │
-│  196px   ├──────────────────────────────────┤
+│  230px   ├──────────────────────────────────┤
 │          │  Console Drawer（開閉可能）        │
 ├──────────┴──────────────────────────────────┤
 │ Status Ribbon                        24px   │
 └─────────────────────────────────────────────┘
 ```
 
-- Left Panel の幅: **196px** 固定（折りたたみ機能は持たない）
+- Left Panel の幅: **230px** 固定（折りたたみ機能は持たない）
 - Visualizer はLeft Panel・Top Toolbar・Status Ribbonを除いた残余領域をすべて占有する
 - Console Drawer は Visualizer の下端に吸着する形で開閉する
 
@@ -49,7 +49,7 @@
 | `--tp` | `#FAFAF7` | `#191919` | Primary text |
 | `--ts` | `#9A9A9A` | `#6E6E6E` | Secondary text・ラベル・非活性アイコン・未実行パス |
 | `--accent` | `#0fd140` | `#0aaa33` | Run状態・進捗バー・Console dot・完了済みパス |
-| `--danger` | `#F2675C` | `#D92D20` | Alarm状態・Soft Resetボタン・エラーログ・現在位置マーカー |
+| `--danger` | `#E73427` | `#D92D20` | Alarm状態・Soft Resetボタン・エラーログ・現在位置マーカー |
 | `--warning` | `#F5A623` | `#C77A1F` | Hold状態・Unlockボタン・再開ポイントラベル |
 
 > ライトモードの `--accent` は白背景上でのコントラスト比確保のため `#0aaa33` に調整している。
@@ -82,18 +82,28 @@
 
 **高さ**: 46px  
 **背景**: `--surface`  
-**下境界**: `1px solid --border`
+**下境界**: `1px solid --border`  
+**レイアウト**: フラット flex・`align-items: center`・`gap: 8px`（全要素間均一）・右 padding のみ 8px
 
 #### ボタン配置（左から順）
 
-| ボタン | アイコン | 活性条件 | 動作 |
+| 要素 | アイコン / 内容 | 活性条件 | 動作 |
 |---|---|---|---|
+| ロゴエリア | `Rabbit`（仮）・`--ts` color | — | クリック不可・幅 45px・高さ 100% |
 | Open File | `FolderOpen` | 常時 | ファイルピッカーを開く |
 | Run / Resume | `Play` | 接続済み かつ (一時停止中 または (未実行 かつ ファイル読込済)) | 実行開始 or 一時停止から再開 |
 | Pause | `Pause` | `machineState === 'Run'` | Feed Hold |
 | Stop | `Square` | `machineState === 'Run' \| 'Hold'` | ジョブキャンセル |
-| — | セパレーター(1px) | — | — |
-| Soft Reset | `TriangleAlert` | 常時 | `0x18` 送信・color `--danger` |
+| — | セパレーター (1px × 24px) | — | ロゴ〜Stopまでの合計幅がLeft Panel幅(230px)と揃う位置 |
+| Home | `Home` | 接続済み | `$H` ホーミング |
+| Lock / Unlock | `Lock`(Alarm時) / `LockOpen`(それ以外) | 接続済み | Alarm状態時に `$X` アンロック。非Alarm時はクリック無効 |
+| — | セパレーター (1px × 24px) | — | — |
+| Soft Reset | `TriangleAlert` | 常時 | `0x18` 送信 |
+
+- **Run ボタン**: 塗りつぶしスタイル（bg `--accent`・border `--accent`・icon color `--surface`）
+- **Soft Reset ボタン**: 塗りつぶしスタイル（bg `--danger`・border `--danger`・icon color `--surface`）
+- **Lock/Unlock ボタン**: `machineState === 'Alarm'` 時は `--warning` border+color で `Lock` アイコン。それ以外は `LockOpen` アイコンをデフォルトスタイルで表示
+- 全ボタンに `AppTooltip` を適用し、ホバー500ms後にツールチップを表示。Gコードコマンドを送信するボタンにはサブテキスト（コマンド文字列）も表示
 
 #### 再開ポイントラベル（Spacer右）
 
@@ -110,11 +120,11 @@
 #### 進捗エリア（右端、ジョブ実行中のみ表示）
 
 - 進捗バー: 幅110px・高さ2px・color `--accent`
-- ラベル: `{currentLine} / {totalLines}`、`font-mono`・11px・color `--ts`
+- ラベル: `{percent}% ({currentLine} / {totalLines})`、`font-mono`・11px・color `--ts`
 
 #### ボタン共通仕様
 
-- サイズ: 36px × 34px
+- サイズ: **36px × 36px（正方形）**
 - border-radius: 5px
 - border: `1px solid --border`
 - hover: background `--surface2`
@@ -125,7 +135,7 @@
 
 ### 3.2 Left Panel
 
-**幅**: 196px  
+**幅**: 230px  
 **背景**: `--surface`  
 **右境界**: `1px solid --border`  
 **構成（上から）**: MachineState Bar → Coordinate Section → Jog Section
@@ -171,7 +181,10 @@ Z     1.038    1.038
 
 **XYグリッド(3×3) + Z軸ボタン 横並び配置**
 
-各Jogボタン: 高さ36px・border-radius 4px・border `1px solid --border`・bg `--surface2`  
+レイアウト: `grid-template-columns: 3fr 1fr`・gap 3px。XYグリッドは3列・Z軸は flex column で上下端揃え（`justify-content: space-between; align-self: stretch`）。
+
+各Jogボタン: `aspect-ratio: 1`（正方形・幅100%）・border-radius 4px・border `1px solid --border`・bg `--surface2`  
+アイコンサイズ: 20px・stroke-width 1.5  
 `Alarm` 状態中は `pointer-events: none; opacity: 0.4`
 
 **送信コマンド形式**:
@@ -184,15 +197,17 @@ G91 G0 G21 Z{dz}            # Z移動
 - `$J=` GRBL jogコマンドは使用しない（通常G-codeで送信）
 - Jogコマンドもコンソールにtx方向でログを記録する
 
-**ステップサイズ行**: `0.1 / 1 / 10 / 100`（mm）
+**ステップサイズ行**: `0.1 / 1 / 10 / 100`（mm）+ カスタム入力欄（数値入力・44px幅・placeholder `…`）
+- プリセットボタンまたはカスタム入力が選択された方がハイライト表示
+- カスタム入力は `change` / `Enter` でステップサイズを確定
 
 **アクションボタン行**（Jog Section下部）:
 
 | ボタン | アイコン | 送信コマンド |
 |---|---|---|
-| Unlock | `LockOpen` (`--warning`) | `$X` |
-| Home | `Home` | `$H` |
-| Go to work zero | `Crosshair` | `G0 X0 Y0 Z0` |
+| Go to work zero | `Crosshair` + "Work Zero" ラベル | `G0 X0 Y0 Z0` |
+
+> Home・Unlock ボタンは **Top Toolbar に移動**した。
 
 ---
 
@@ -218,9 +233,37 @@ G91 G0 G21 Z{dz}            # Z移動
 
 #### ツールパス描画
 
-- 完了済みパス: color `--accent`・不透明度 0.9・lineWidth 1.5
-- 未実行パス: color `--ts`・不透明度 0.4・lineWidth 1.5
+| 種別 | 条件 | 色 | 線種 | lineWidth | 不透明度 |
+|---|---|---|---|---|---|
+| 描画パス（G1）完了済み | `!rapid && done` | `--accent` | 実線 | 1.5 | 0.9 |
+| 描画パス（G1）未実行 | `!rapid && !done` | `--accent` | 実線 | 1.5 | 0.4 |
+| 移動パス（G0/rapid）完了済み | `rapid && done` | `--rapid-path` | 破線 [4,4] | 1.0 | 0.7 |
+| 移動パス（G0/rapid）未実行 | `rapid && !done` | `--rapid-path` | 破線 [4,4] | 1.0 | 0.25 |
+
+- `--rapid-path`: ライト `#6b9bd2` / ダーク `#4a7fc1`
 - 現在位置マーカー: color `--danger`（4px丸 + 9px クロスヘア）
+
+#### Visualizerコントロール（右上フローティング）
+
+高さ 28px で統一。`gap: 4px` で横並び。
+
+| 要素 | アイコン | 動作 |
+|---|---|---|
+| 100% ボタン | `SquareEqual` | ズームを scale=1・offsetX/Y=canvas中央にリセット |
+| フィットボタン | `Group` | ツールパスの描画範囲にフィット（ダブルクリックと同等） |
+| 用紙ガイド | `Frame` + `AppSelect` | 用紙サイズ選択（なし/A3横/A3縦/A4横/A4縦/A5横/A5縦/カスタム）。選択時は原点(0,0)を左下として正方向に用紙サイズの破線矩形（`--warning`色・半透明塗り）を描画。カスタム選択時はW×H数値入力欄を表示 |
+
+- ズーム感度: wheel 1段あたり約6%（zoomFactor `1.06`）
+
+#### プログレスオーバーレイ（下部中央、ジョブ実行中のみ表示）
+
+- 幅120px・高さ3px の進捗バー + `{percent}%` テキスト
+- position: fixed 下部中央
+- 背景: `--surface`・opacity 0.9
+
+#### マウスカーソル
+
+- Visualizer canvas 上では常に `cursor: move`
 
 #### G-codeパーサ（gcodeToPath）対応範囲
 
@@ -245,8 +288,7 @@ X  119.581   Y  76.025   Zoom 305%
 
 ### 3.4 Console Drawer
 
-**開状態高さ**: 140px  
-**閉状態高さ**: 30px（ヘッダーのみ）  
+**高さ**: Visualizerとの境界をドラッグで可変（最小80px〜）。境界線は高さ5pxの `--border` 色バー（`cursor: ns-resize`）  
 **背景**: `--surface`  
 **上境界**: `1px solid --border`
 
@@ -261,6 +303,8 @@ X  119.581   Y  76.025   Zoom 305%
 - フォント: `font-mono`・12px・line-height 1.65
 - 最大行数: 500行（超過分は先頭から削除）
 - 新規行追加時に自動スクロール（最下部へ）
+- `ok` のみのレスポンスで直前に tx 行が存在する場合は非表示（冗長な確認OKを隠す）
+- ログテキストは `user-select: text` で範囲選択・コピー可能
 
 | 行種別 | prefix | color |
 |---|---|---|
@@ -313,24 +357,26 @@ X  119.581   Y  76.025   Zoom 305%
 
 **トリガー**: Top Toolbar の Settings ボタン（右端）  
 **表示位置**: `position: absolute; right: 0; top: 0`（Visualizer上端右端に重なる）  
+**幅**: 240px 固定  
 **背景**: `--surface`  
 **下境界・左境界**: `1px solid --border`  
 **padding**: 10px 14px 12px
 
 #### 内部レイアウト
 
-2カラムグリッド（`1fr 1fr`・gap 14px）
+縦積み（`flex-direction: column`・gap 14px）。Serial セクションの下に `1px solid --border` の区切り線を挟んで OSC セクションを配置する。
 
-**左カラム: Serial**
+**Serial セクション**
 
 | 要素 | 仕様 |
 |---|---|
-| Port | `<select>`・接続中はdisabled |
-| Baud rate | `<select>`・接続中はdisabled |
-| Connect / Disconnect | `--accent`背景・color `#111`・width 100% |
-| Poll interval | `<select>`（100 / 200 / 250 / 500 / 1000 ms）・未接続時はdisabled・変更即時反映 |
+| Port | `AppSelect`・接続中はdisabled・ラベル右端に ↺ リロードボタン。Arduino/WCH製造元のポートは `★` バッジ付きで最上位に表示 |
+| Baud rate | `AppSelect`・接続中はdisabled |
+| Connect | bg `--accent`・color `--surface`・width 100% |
+| Disconnect | bg `--danger`・color `--surface`・width 100%（接続中に表示） |
+| Poll interval | `AppSelect`（10 / 20 / 50 / 100 / 200 / 500 / 1000 ms）・未接続時はdisabled・変更即時反映 |
 
-**右カラム: OSC**
+**OSC セクション**
 
 | 要素 | 仕様 |
 |---|---|
@@ -338,7 +384,13 @@ X  119.581   Y  76.025   Zoom 305%
 | Port | `<input type="text">`・変更時に即時反映 |
 | Enable | トグルスイッチ（on: `--accent`・off: `--border`） |
 
-閉じるボタン: 右上に Lucide `X`
+- Settings Drawer 外の領域をクリックすると Drawer が閉じる
+- 閉じるボタン: 右上に Lucide `X`
+
+#### AppSelect ドロップダウン挙動
+
+- ドロップダウンの `maxWidth` はビューポート右端までの残余幅に制限し、画面外へのはみ出しを防ぐ
+- オプションテキストが幅を超える場合は `text-overflow: ellipsis` で省略する
 
 ---
 
@@ -412,6 +464,7 @@ X  119.581   Y  76.025   Zoom 305%
 - Canvas サイズは `ResizeObserver` でコンテナ変化を検知して更新する
 - グリッドの float ドリフトを避けるため、座標は `idx * step` の整数インデックス乗算で算出する（`x += step` の累積加算は使用しない）
 - CSS 変数は Canvas 2D の `font` プロパティに直接渡せないため、`getComputedStyle` で解決した実値を使う
+- **テーマ切り替え対応**: `window.matchMedia('(prefers-color-scheme: dark)')` の `change` イベントを購読し、OS のライト/ダーク切り替え時に即座に `draw()` を呼び出す。購読はコンポーネントの `onBeforeUnmount` で解除する
 
 ### 5.4 gcodeToPath
 
