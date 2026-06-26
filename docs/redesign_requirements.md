@@ -38,7 +38,7 @@
 | アプリ基盤 | Electron | Main/Rendererのプロセス分離を採用 |
 | Renderer フレームワーク | **Vue 3 (Composition API)** | 細粒度リアクティビティにより「値が変わらなければ再描画しない」を素で満たし、3章の項目5の回避に直接寄与する |
 | 言語 | TypeScript | Main/Renderer双方 |
-| ビルド | Vite | `vite-plugin-electron` 系を使用 |
+| ビルド | Vite + **electron-builder** | Vite でJS/CSS生成、electron-builder でmacOS `.app` パッケージ化。`npm run package` で一括実行 |
 | 状態管理(Renderer) | **Pinia** | Vue標準の状態管理。Mainからpushされる状態を1つのストアに集約し、各コンポーネントは必要なプロパティだけを参照する |
 | スタイリング | **Vanilla CSS + CSS Modules** | ユーティリティCSSフレームワークは採用しない。Vue SFCの`<style module>`または`scoped`を利用 |
 | シリアル通信 | `serialport` | macOS限定のため採用リスクは低い |

@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, nativeImage } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipcContract'
 import { createApp, type App } from './app'
 import { SerialTransport } from './serial/transport'
@@ -13,10 +13,12 @@ let win: BrowserWindow | null = null
 let runningApp: App | null = null
 
 function createWindow(): void {
+  const iconPath = path.join(APP_ROOT, 'build', 'icon.icns')
   win = new BrowserWindow({
     width: 1280,
     height: 800,
     title: 'Gcode Tracer',
+    icon: iconPath,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 12, y: 15 },
     webPreferences: {
@@ -52,4 +54,8 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  const icon = nativeImage.createFromPath(path.join(APP_ROOT, 'build', 'icon.icns'))
+  if (!icon.isEmpty()) app.dock?.setIcon(icon)
+  createWindow()
+})

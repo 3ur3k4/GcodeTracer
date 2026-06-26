@@ -482,3 +482,21 @@ X  119.581   Y  76.025   Zoom 305%
 
 - `contextIsolation: true` / `nodeIntegration: false` / `sandbox: true` を明示設定する
 - Preload では `contextBridge.exposeInMainWorld('api', ...)` のみでレンダラーに API を公開する
+
+### 5.6 アプリアイコン
+
+- アイコンファイルは `build/icon.icns` に配置する
+- **セーフマージン**: 元素材の周囲に **10%** のマージンを設けてアイコンを縮小配置する（アイコンのコンテンツが Dock 上で過大に見えることを防ぐため）
+- **カラープロファイル**: 元素材が Display P3 プロファイルを持つ場合、画像処理時にプロファイルを保持して保存すること（Pillowで処理する場合は `icc_profile=img.info.get("icc_profile")` を `save()` に渡す）。プロファイルを落とすと sRGB 解釈され色がくすむ
+- `BrowserWindow` の `icon` オプションと `app.dock.setIcon()` の両方に設定する。`dock.setIcon()` は `app.whenReady()` 内で呼ぶ（dev環境でも反映させるため）
+- `serialport` はネイティブアドオンのため、electron-builder の `asarUnpack` に含める
+
+### 5.7 パッケージビルド
+
+```bash
+npm run package   # vite build → electron-builder (release/mac-arm64/ に .app 生成)
+```
+
+- electron-builder の設定は `package.json` の `"build"` フィールドで管理する
+- `serialport` / `@serialport` は `files` と `asarUnpack` の両方に列挙する（asar 内に含めると native addon の prebuild 解決が壊れる）
+- コード署名なしでビルドする場合、electron-builder が警告を出すが動作には支障なし
