@@ -182,13 +182,15 @@ function stop(): void {
   -webkit-app-region: no-drag;
 }
 .appName {
-  padding-left: 100px;
-  padding-right: 21.5px;
+  padding-left: 90px;
+  padding-right: 14px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--tp);
   white-space: nowrap;
   letter-spacing: 0.01em;
+  font-family: var(--font-mono);
+  font-style: italic;
 }
 .appName.fullscreen {
   padding: 0;
