@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
 import { gcodeToPath } from '@/lib/gcodeToPath'
-import { Frame, Group, SquareEqual } from '@lucide/vue'
+import { ChevronLeft, ChevronRight, Frame, Group, SlidersHorizontal, SquareEqual } from '@lucide/vue'
 import AppSelect from '@/components/AppSelect.vue'
 
 const store = useAppStore()
@@ -15,6 +15,44 @@ const containerRef = ref<HTMLDivElement | null>(null)
 const toolPath = computed(() => gcodeToPath(gcodeFile.lines))
 const view = ref({ scale: 1, offsetX: 0, offsetY: 0 })
 const zoomPercent = computed(() => Math.round(view.value.scale * 100))
+
+const previewActive = ref(false)
+const previewLine = ref(0)
+
+// セグメントが存在するソース行番号の昇順リスト（重複排除済み）
+const segmentLines = computed<number[]>(() => {
+  const set = new Set(toolPath.value.segments.map((s) => s.sourceLine))
+  return Array.from(set).sort((a, b) => a - b)
+})
+
+function togglePreview(): void {
+  if (previewActive.value) {
+    previewActive.value = false
+  } else {
+    previewLine.value = gcodeFile.lines.length
+    previewActive.value = true
+  }
+  draw()
+}
+
+function stepNext(): void {
+  const lines = segmentLines.value
+  const next = lines.find((l) => l >= previewLine.value)
+  previewLine.value = next !== undefined ? next + 1 : gcodeFile.lines.length
+}
+
+function stepPrev(): void {
+  const lines = segmentLines.value
+  let prev: number | undefined
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i] < previewLine.value) {
+      prev = lines[i]
+      break
+    }
+  }
+  previewLine.value = prev !== undefined ? prev : 0
+}
+
 const progressPercent = computed(() => {
   if (store.job.totalLines === 0) return 0
   return Math.round((store.job.currentLine / store.job.totalLines) * 100)
@@ -218,7 +256,7 @@ function draw(): void {
   const drawColor = token('--accent')
   const rapidColor = token('--rapid-path')
   const markerColor = token('--danger')
-  const currentLine = store.job.currentLine
+  const currentLine = previewActive.value ? previewLine.value : store.job.currentLine
 
   for (const seg of toolPath.value.segments) {
     const done = seg.sourceLine < currentLine
@@ -228,14 +266,14 @@ function draw(): void {
     ctx.moveTo(x1, y1)
     ctx.lineTo(x2, y2)
     if (seg.rapid) {
-      ctx.globalAlpha = done ? 0.7 : 0.25
+      ctx.globalAlpha = done ? (previewActive.value ? 0.8 : 0.7) : (previewActive.value ? 0.08 : 0.25)
       ctx.strokeStyle = rapidColor
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
     } else {
-      ctx.globalAlpha = done ? 0.9 : 0.4
+      ctx.globalAlpha = done ? (previewActive.value ? 1.0 : 0.9) : (previewActive.value ? 0.12 : 0.4)
       ctx.strokeStyle = drawColor
-      ctx.lineWidth = 1.5
+      ctx.lineWidth = previewActive.value && done ? 2 : 1.5
       ctx.setLineDash([])
     }
     ctx.stroke()
@@ -258,6 +296,38 @@ function draw(): void {
   ctx.arc(px, py, markerRadius, 0, Math.PI * 2)
   ctx.fillStyle = markerColor
   ctx.fill()
+
+  if (previewActive.value) {
+    const segs = toolPath.value.segments
+    let headX = 0
+    let headY = 0
+    let found = false
+    for (let i = segs.length - 1; i >= 0; i--) {
+      if (segs[i].sourceLine < previewLine.value) {
+        headX = segs[i].x2
+        headY = segs[i].y2
+        found = true
+        break
+      }
+    }
+    if (found) {
+      const [hx, hy] = toCanvas(headX, headY)
+      const halfSize = 5
+      ctx.strokeStyle = drawColor
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(hx, hy - halfSize)
+      ctx.lineTo(hx + halfSize, hy)
+      ctx.lineTo(hx, hy + halfSize)
+      ctx.lineTo(hx - halfSize, hy)
+      ctx.closePath()
+      ctx.stroke()
+      ctx.globalAlpha = 0.3
+      ctx.fillStyle = drawColor
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+  }
 }
 
 function resizeCanvas(): void {
@@ -318,7 +388,12 @@ function onDoubleClick(): void {
 }
 
 watch(toolPath, () => {
+  previewActive.value = false
   fitToView()
+})
+
+watch(previewLine, () => {
+  if (previewActive.value) draw()
 })
 
 // wpos参照の差し替えではなく実際の値変化・進捗変化のみで再描画する
@@ -370,6 +445,15 @@ onBeforeUnmount(() => {
       <button class="viewButton iconOnly" title="ファイルの描画範囲にフィット (ダブルクリックでも可)" @click="fitToView">
         <Group :size="15" :stroke-width="1.75" />
       </button>
+      <button
+        v-if="gcodeFile.lines.length > 0"
+        class="viewButton iconOnly"
+        :class="{ active: previewActive }"
+        title="軌跡プレビュー (もう一度押すと解除)"
+        @click="togglePreview"
+      >
+        <SlidersHorizontal :size="15" :stroke-width="1.75" />
+      </button>
       <div class="paperControl">
         <Frame :size="14" :stroke-width="1.75" class="paperIcon" />
         <AppSelect v-model="selectedPaperIdx" :options="paperOptions" class="paperSelect" />
@@ -380,6 +464,32 @@ onBeforeUnmount(() => {
           <span class="customSizeUnit">mm</span>
         </template>
       </div>
+    </div>
+    <div v-if="previewActive && gcodeFile.lines.length > 0" class="previewBar">
+      <button
+        class="previewStep"
+        title="一コマンド戻る"
+        :disabled="previewLine === 0"
+        @click="stepPrev"
+      >
+        <ChevronLeft :size="14" :stroke-width="2" />
+      </button>
+      <input
+        v-model.number="previewLine"
+        type="range"
+        min="0"
+        :max="gcodeFile.lines.length"
+        class="previewSlider"
+      />
+      <button
+        class="previewStep"
+        title="一コマンド進める"
+        :disabled="previewLine >= gcodeFile.lines.length"
+        @click="stepNext"
+      >
+        <ChevronRight :size="14" :stroke-width="2" />
+      </button>
+      <span class="previewCount">{{ previewLine }} / {{ gcodeFile.lines.length }}</span>
     </div>
     <div v-if="store.job.running" class="progressOverlay">
       <div class="progressTrack">
@@ -508,6 +618,59 @@ canvas {
 .customSizeUnit {
   font-size: 11px;
   color: var(--ts);
+}
+.viewButton.active {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  opacity: 1;
+}
+.previewBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  background-color: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.previewStep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background-color: var(--surface2);
+  color: var(--ts);
+  flex: none;
+}
+.previewStep:hover:not(:disabled) {
+  color: var(--tp);
+  background-color: var(--surface);
+}
+.previewStep:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.previewSlider {
+  flex: 1;
+  accent-color: var(--accent);
+  cursor: pointer;
+  height: 4px;
+}
+.previewCount {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ts);
+  min-width: 72px;
+  text-align: right;
+  flex: none;
 }
 .progressOverlay {
   position: absolute;
