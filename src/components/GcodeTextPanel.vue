@@ -239,18 +239,18 @@ function onLineClick(index: number): void {
       <span v-if="gcodeFile.fileName" class="fileName" :title="gcodeFile.fileName">
         {{ gcodeFile.fileName }}
       </span>
-      <button class="headerBtn" :class="{ active: searchBarOpen }" title="検索 (⌘F)" @click="openSearchBar">
-        <Search :size="12" :stroke-width="2" />
+      <button class="headerBtn" :class="{ active: searchBarOpen }" title="検索 (⌘F)" @click="searchBarOpen ? closeSearchBar() : openSearchBar()">
+        <Search :size="16" :stroke-width="2" />
       </button>
       <button class="headerBtn" title="閉じる" @click="$emit('close')">
-        <X :size="13" :stroke-width="2" />
+        <X :size="17" :stroke-width="2" />
       </button>
     </div>
 
     <div v-if="searchBarOpen" class="searchBar">
       <!-- テキスト検索 -->
       <div class="searchRow">
-        <Search :size="11" class="searchIcon" />
+        <Search :size="16" class="searchIcon" />
         <input
           ref="searchInputRef"
           v-model="searchQuery"
@@ -264,13 +264,10 @@ function onLineClick(index: number): void {
           {{ matchIndices.length ? `${currentMatchIdx + 1}/${matchIndices.length}` : '0件' }}
         </span>
         <button class="searchBtn" :disabled="!matchIndices.length" title="前へ (⇧Enter)" @click="prevMatch">
-          <ChevronUp :size="12" :stroke-width="2" />
+          <ChevronUp :size="16" :stroke-width="2" />
         </button>
         <button class="searchBtn" :disabled="!matchIndices.length" title="次へ (Enter)" @click="nextMatch">
-          <ChevronDown :size="12" :stroke-width="2" />
-        </button>
-        <button class="searchBtn closeBar" title="閉じる (Esc)" @click="closeSearchBar">
-          <X :size="11" :stroke-width="2" />
+          <ChevronDown :size="16" :stroke-width="2" />
         </button>
       </div>
 
@@ -287,7 +284,7 @@ function onLineClick(index: number): void {
           @keydown.enter="onJumpEnter"
         />
         <button class="searchBtn" title="この行へジャンプ" @click="onJumpEnter">
-          <CornerDownLeft :size="11" :stroke-width="2" />
+          <CornerDownLeft :size="15" :stroke-width="2" />
         </button>
         <div class="subDivider" />
         <input
@@ -313,7 +310,7 @@ function onLineClick(index: number): void {
           title="範囲をクリア"
           @click="clearRange"
         >
-          <X :size="11" :stroke-width="2" />
+          <X :size="15" :stroke-width="2" />
         </button>
       </div>
     </div>
@@ -402,8 +399,8 @@ function onLineClick(index: number): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--surface2);
@@ -427,12 +424,12 @@ function onLineClick(index: number): void {
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 30px;
+  height: 34px;
   padding: 0 8px 0 10px;
 }
 .searchRow + .searchRow {
   border-top: 1px solid var(--border);
-  height: 28px;
+  height: 32px;
 }
 .searchIcon {
   color: var(--ts);
@@ -441,7 +438,7 @@ function onLineClick(index: number): void {
 }
 .searchInput {
   flex: 1;
-  height: 22px;
+  height: 24px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background-color: var(--surface);
@@ -465,8 +462,8 @@ function onLineClick(index: number): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: transparent;
@@ -475,7 +472,6 @@ function onLineClick(index: number): void {
 }
 .searchBtn:hover:not(:disabled) { color: var(--tp); background: var(--surface); }
 .searchBtn:disabled { opacity: 0.3; cursor: default; }
-.searchBtn.closeBar { margin-left: 2px; }
 
 .subRow { gap: 3px; }
 .subLabel {
@@ -483,6 +479,8 @@ function onLineClick(index: number): void {
   font-size: 10px;
   color: var(--ts);
   flex: none;
+  width: 16px;
+  text-align: center;
 }
 .subDivider {
   width: 1px;
@@ -493,7 +491,7 @@ function onLineClick(index: number): void {
 }
 .jumpInput {
   width: 52px;
-  height: 20px;
+  height: 24px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background-color: var(--surface);
@@ -506,7 +504,7 @@ function onLineClick(index: number): void {
 .jumpInput:focus { outline: none; border-color: var(--accent); }
 .rangeInput {
   width: 44px;
-  height: 20px;
+  height: 24px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background-color: var(--surface);
@@ -532,6 +530,8 @@ function onLineClick(index: number): void {
 }
 .line.match { background-color: color-mix(in srgb, #e8a020 6%, transparent); }
 .line.current-match { background-color: color-mix(in srgb, #e8a020 14%, transparent); }
+.line.future.match,
+.line.future.current-match { opacity: 1; }
 
 /* ── 行リスト ── */
 .empty {
