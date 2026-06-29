@@ -362,6 +362,7 @@ function onLineClick(index: number): void {
   width: 4px;
   cursor: ew-resize;
   z-index: 1;
+  background-color: var(--border);
 }
 .resizer:hover,
 .resizer:active {
