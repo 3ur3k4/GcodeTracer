@@ -66,17 +66,19 @@ function fitToView(): void {
   const canvas = canvasRef.value
   if (!canvas) return
   if (toolPath.value.segments.length === 0) {
-    view.value = { scale: 1, offsetX: canvas.width / 2, offsetY: canvas.height / 2 }
+    // toolpath なし: GRBL座標系の原点(0,0)を左下に配置する
+    view.value = { scale: 1, offsetX: PADDING_PX, offsetY: canvas.clientHeight - PADDING_PX }
+    draw()
     return
   }
   const { bounds } = toolPath.value
   const width = bounds.maxX - bounds.minX || 1
   const height = bounds.maxY - bounds.minY || 1
-  const scale = Math.min((canvas.width - PADDING_PX * 2) / width, (canvas.height - PADDING_PX * 2) / height)
+  const scale = Math.min((canvas.clientWidth - PADDING_PX * 2) / width, (canvas.clientHeight - PADDING_PX * 2) / height)
   view.value = {
     scale,
-    offsetX: canvas.width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale,
-    offsetY: canvas.height / 2 + ((bounds.minY + bounds.maxY) / 2) * scale,
+    offsetX: canvas.clientWidth / 2 - ((bounds.minX + bounds.maxX) / 2) * scale,
+    offsetY: canvas.clientHeight / 2 + ((bounds.minY + bounds.maxY) / 2) * scale,
   }
   draw()
 }
@@ -86,8 +88,8 @@ function zoomToActual(): void {
   if (!canvas) return
   view.value = {
     scale: 1,
-    offsetX: canvas.width / 2,
-    offsetY: canvas.height / 2,
+    offsetX: canvas.clientWidth / 2,
+    offsetY: canvas.clientHeight / 2,
   }
   draw()
 }
@@ -140,8 +142,8 @@ function drawGrid(): void {
   const labelColor = token('--ts')
 
   const leftWorld = -offsetX / scale
-  const rightWorld = (canvas.width - offsetX) / scale
-  const bottomWorld = (offsetY - canvas.height) / scale
+  const rightWorld = (canvas.clientWidth - offsetX) / scale
+  const bottomWorld = (offsetY - canvas.clientHeight) / scale
   const topWorld = offsetY / scale
 
   const firstXIdx = Math.floor(leftWorld / step)
@@ -160,11 +162,11 @@ function drawGrid(): void {
     drawGridLine(ctx, kind, colors, () => {
       ctx.beginPath()
       ctx.moveTo(screenX, 0)
-      ctx.lineTo(screenX, canvas.height)
+      ctx.lineTo(screenX, canvas.clientHeight)
       ctx.stroke()
     })
     if (kind !== 'minor') {
-      ctx.fillText(x.toFixed(step < 1 ? 1 : 0), screenX + 3, canvas.height - 14)
+      ctx.fillText(x.toFixed(step < 1 ? 1 : 0), screenX + 3, canvas.clientHeight - 14)
     }
   }
 
@@ -176,7 +178,7 @@ function drawGrid(): void {
     drawGridLine(ctx, kind, colors, () => {
       ctx.beginPath()
       ctx.moveTo(0, screenY)
-      ctx.lineTo(canvas.width, screenY)
+      ctx.lineTo(canvas.clientWidth, screenY)
       ctx.stroke()
     })
     if (kind !== 'minor') {
@@ -209,7 +211,7 @@ function draw(): void {
   const ctx = canvas?.getContext('2d')
   if (!canvas || !ctx) return
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
   drawGrid()
   drawPaperGuide(ctx)
 
@@ -262,8 +264,15 @@ function resizeCanvas(): void {
   const canvas = canvasRef.value
   const container = containerRef.value
   if (!canvas || !container) return
-  canvas.width = container.clientWidth
-  canvas.height = container.clientHeight
+  const dpr = window.devicePixelRatio || 1
+  const cssW = container.clientWidth
+  const cssH = container.clientHeight
+  canvas.width = cssW * dpr
+  canvas.height = cssH * dpr
+  canvas.style.width = `${cssW}px`
+  canvas.style.height = `${cssH}px`
+  const ctx = canvas.getContext('2d')
+  ctx?.scale(dpr, dpr)
   draw()
 }
 
