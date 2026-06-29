@@ -305,6 +305,57 @@ G91 G0 G21 Z{dz}            # Z移動
 
 - Visualizer canvas 上では常に `cursor: move`
 
+---
+
+### 3.7 Gコードテキストパネル
+
+**トリガー**: Top Toolbar の `FileCode2` ボタン（Settings ボタン左隣）。アクティブ時はアイコンを `--accent` 色で表示  
+**表示位置**: Visualizer の右端に並置（Visualizer 幅を押し縮める）  
+**デフォルト幅**: 280px・左端ドラッグで 180px〜600px に可変  
+**背景**: `--surface`  
+**左境界**: `1px solid --border`
+
+#### ヘッダー（32px）
+
+- 左: "G-CODE" ラベル（`font-mono`・10px・`--ts`・letter-spacing 0.08em）
+- 中: ファイル名（`font-mono`・10px・`--ts`・opacity 0.6・省略表示）
+- 右: `×` 閉じるボタン（20px 正方形）
+
+#### ライン一覧
+
+- `overflow-y: auto` スクロール（数千行は通常スクロールで対応、パフォーマンス問題があれば仮想スクロールに移行）
+- 各行: 行番号（右揃え 34px・10px mono・`--ts` opacity 0.5） + コード本文（12px mono）
+- 左端 3px のボーダー（透明 / 完了色）でハイライトを示す
+
+**シンタックスハイライト**
+
+| トークン種別 | 対象 | 色 |
+|---|---|---|
+| `tok-g` | G コード（G0、G1、G90 等） | `--accent` |
+| `tok-m` | M コード（M3、M5 等） | `--warning` |
+| `tok-coord` | 軸ワード（X/Y/Z/I/J/K/F/S/R 値） | `--tp` |
+| `tok-comment` | `(...)` / `;` コメント | `--ts`・italic |
+| `tok-plain` | その他 | `--tp` opacity 0.75 |
+
+**行の状態とスタイル**
+
+| 状態 | 適用条件 | スタイル |
+|---|---|---|
+| `head` | プレビュー時の最終完了行（index = previewLine − 1） | 左ボーダー `--accent`・背景 accent 8% |
+| `current` | ジョブ実行中の現在行（index = job.currentLine） | 左ボーダー `--accent`・背景 accent 14% |
+| `done` | 完了済み行 | 通常スタイル |
+| `future` | 未実行行（プレビュー or ジョブ実行中） | opacity 0.35 |
+
+**インタラクション**
+
+- 行クリック → `gcodeFile.setPreviewLine(index + 1)` を呼び、プレビューモードを ON にしてビジュアライザーと連動
+- プレビュースライダー操作 → テキストパネルが head 行に自動スクロール（`scrollIntoView({ block: 'nearest' })`）
+- ジョブ実行中の `job.currentLine` 変化 → current 行に自動スクロール（プレビューモード OFF 時のみ）
+
+**状態の共有（アーキテクチャ）**
+
+`previewActive` / `previewLine` / `toolPath` / `segmentLines` は `gcodeFileStore` で保持し、VisualizerPanel と GcodeTextPanel が同一の状態を参照する。`gcodeToPath` の二重呼び出しを防ぐ。
+
 #### G-codeパーサ（gcodeToPath）対応範囲
 
 - G0/G1（直線移動）、G2/G3（円弧・IJK形式のみ）

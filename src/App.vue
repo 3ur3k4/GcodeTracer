@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/appStore'
 import TopToolbar from '@/components/TopToolbar.vue'
 import LeftPanel from '@/components/LeftPanel.vue'
 import VisualizerPanel from '@/components/VisualizerPanel.vue'
+import GcodeTextPanel from '@/components/GcodeTextPanel.vue'
 import ConsoleDrawer from '@/components/ConsoleDrawer.vue'
 import StatusRibbon from '@/components/StatusRibbon.vue'
 import SettingsDrawer from '@/components/SettingsDrawer.vue'
@@ -13,6 +14,7 @@ let disposeInit: (() => void) | null = null
 
 const settingsOpen = ref(false)
 const settingsAnchorRef = ref<HTMLDivElement | null>(null)
+const gcodeTextPanelOpen = ref(false)
 
 // ConsoleDrawer の開閉状態と高さ（px）
 const consoleOpen = ref(true)
@@ -87,11 +89,21 @@ onUnmounted(() => {
 
 <template>
   <div class="app">
-    <TopToolbar @toggle-settings="settingsOpen = !settingsOpen" />
+    <TopToolbar
+      :gcode-text-panel-open="gcodeTextPanelOpen"
+      @toggle-settings="settingsOpen = !settingsOpen"
+      @toggle-gcode-panel="gcodeTextPanelOpen = !gcodeTextPanelOpen"
+    />
     <div class="body" @click="onBodyClick">
       <LeftPanel />
       <div ref="contentRef" class="content">
-        <VisualizerPanel style="flex: 1 1 auto; min-height: 0;" />
+        <div class="visualizerRow">
+          <VisualizerPanel />
+          <GcodeTextPanel
+            v-if="gcodeTextPanelOpen"
+            @close="gcodeTextPanelOpen = false"
+          />
+        </div>
         <div class="resizer" @pointerdown="onResizerPointerDown" />
         <ConsoleDrawer
           v-model="consoleOpen"
@@ -124,6 +136,12 @@ onUnmounted(() => {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+.visualizerRow {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
 }
 .resizer {
   flex: none;

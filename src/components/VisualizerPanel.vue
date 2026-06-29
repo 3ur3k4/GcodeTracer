@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
-import { gcodeToPath } from '@/lib/gcodeToPath'
 import { ChevronLeft, ChevronRight, Frame, Group, SlidersHorizontal, SquareEqual } from '@lucide/vue'
 import AppSelect from '@/components/AppSelect.vue'
 
@@ -12,46 +11,14 @@ const gcodeFile = useGcodeFileStore()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
 
-const toolPath = computed(() => gcodeToPath(gcodeFile.lines))
 const view = ref({ scale: 1, offsetX: 0, offsetY: 0 })
 const zoomPercent = computed(() => Math.round(view.value.scale * 100))
 
-const previewActive = ref(false)
-const previewLine = ref(0)
-
-// セグメントが存在するソース行番号の昇順リスト（重複排除済み）
-const segmentLines = computed<number[]>(() => {
-  const set = new Set(toolPath.value.segments.map((s) => s.sourceLine))
-  return Array.from(set).sort((a, b) => a - b)
+// スライダーの v-model 用: ストアの previewLine を直接書き換える
+const previewLineModel = computed({
+  get: () => gcodeFile.previewLine,
+  set: (v: number) => { gcodeFile.previewLine = v },
 })
-
-function togglePreview(): void {
-  if (previewActive.value) {
-    previewActive.value = false
-  } else {
-    previewLine.value = gcodeFile.lines.length
-    previewActive.value = true
-  }
-  draw()
-}
-
-function stepNext(): void {
-  const lines = segmentLines.value
-  const next = lines.find((l) => l >= previewLine.value)
-  previewLine.value = next !== undefined ? next + 1 : gcodeFile.lines.length
-}
-
-function stepPrev(): void {
-  const lines = segmentLines.value
-  let prev: number | undefined
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (lines[i] < previewLine.value) {
-      prev = lines[i]
-      break
-    }
-  }
-  previewLine.value = prev !== undefined ? prev : 0
-}
 
 const progressPercent = computed(() => {
   if (store.job.totalLines === 0) return 0
@@ -103,13 +70,13 @@ function toCanvas(x: number, y: number): [number, number] {
 function fitToView(): void {
   const canvas = canvasRef.value
   if (!canvas) return
-  if (toolPath.value.segments.length === 0) {
+  if (gcodeFile.toolPath.segments.length === 0) {
     // toolpath なし: GRBL座標系の原点(0,0)を左下に配置する
     view.value = { scale: 1, offsetX: PADDING_PX, offsetY: canvas.clientHeight - PADDING_PX }
     draw()
     return
   }
-  const { bounds } = toolPath.value
+  const { bounds } = gcodeFile.toolPath
   const width = bounds.maxX - bounds.minX || 1
   const height = bounds.maxY - bounds.minY || 1
   const scale = Math.min((canvas.clientWidth - PADDING_PX * 2) / width, (canvas.clientHeight - PADDING_PX * 2) / height)
@@ -256,9 +223,10 @@ function draw(): void {
   const drawColor = token('--accent')
   const rapidColor = token('--rapid-path')
   const markerColor = token('--danger')
-  const currentLine = previewActive.value ? previewLine.value : store.job.currentLine
+  const isPreview = gcodeFile.previewActive
+  const currentLine = isPreview ? gcodeFile.previewLine : store.job.currentLine
 
-  for (const seg of toolPath.value.segments) {
+  for (const seg of gcodeFile.toolPath.segments) {
     const done = seg.sourceLine < currentLine
     const [x1, y1] = toCanvas(seg.x1, seg.y1)
     const [x2, y2] = toCanvas(seg.x2, seg.y2)
@@ -266,14 +234,14 @@ function draw(): void {
     ctx.moveTo(x1, y1)
     ctx.lineTo(x2, y2)
     if (seg.rapid) {
-      ctx.globalAlpha = done ? (previewActive.value ? 0.8 : 0.7) : (previewActive.value ? 0.08 : 0.25)
+      ctx.globalAlpha = done ? (isPreview ? 0.8 : 0.7) : (isPreview ? 0.08 : 0.25)
       ctx.strokeStyle = rapidColor
       ctx.lineWidth = 1
       ctx.setLineDash([4, 4])
     } else {
-      ctx.globalAlpha = done ? (previewActive.value ? 1.0 : 0.9) : (previewActive.value ? 0.12 : 0.4)
+      ctx.globalAlpha = done ? (isPreview ? 1.0 : 0.9) : (isPreview ? 0.12 : 0.4)
       ctx.strokeStyle = drawColor
-      ctx.lineWidth = previewActive.value && done ? 2 : 1.5
+      ctx.lineWidth = isPreview && done ? 2 : 1.5
       ctx.setLineDash([])
     }
     ctx.stroke()
@@ -297,13 +265,13 @@ function draw(): void {
   ctx.fillStyle = markerColor
   ctx.fill()
 
-  if (previewActive.value) {
-    const segs = toolPath.value.segments
+  if (gcodeFile.previewActive) {
+    const segs = gcodeFile.toolPath.segments
     let headX = 0
     let headY = 0
     let found = false
     for (let i = segs.length - 1; i >= 0; i--) {
-      if (segs[i].sourceLine < previewLine.value) {
+      if (segs[i].sourceLine < gcodeFile.previewLine) {
         headX = segs[i].x2
         headY = segs[i].y2
         found = true
@@ -387,13 +355,15 @@ function onDoubleClick(): void {
   fitToView()
 }
 
-watch(toolPath, () => {
-  previewActive.value = false
+watch(() => gcodeFile.toolPath, () => {
+  // previewActive/previewLine はストアの load() でリセット済み
   fitToView()
 })
 
-watch(previewLine, () => {
-  if (previewActive.value) draw()
+watch(() => gcodeFile.previewActive, () => draw())
+
+watch(() => gcodeFile.previewLine, () => {
+  if (gcodeFile.previewActive) draw()
 })
 
 // wpos参照の差し替えではなく実際の値変化・進捗変化のみで再描画する
@@ -448,9 +418,9 @@ onBeforeUnmount(() => {
       <button
         v-if="gcodeFile.lines.length > 0"
         class="viewButton iconOnly"
-        :class="{ active: previewActive }"
+        :class="{ active: gcodeFile.previewActive }"
         title="軌跡プレビュー (もう一度押すと解除)"
-        @click="togglePreview"
+        @click="gcodeFile.togglePreview"
       >
         <SlidersHorizontal :size="15" :stroke-width="1.75" />
       </button>
@@ -465,17 +435,17 @@ onBeforeUnmount(() => {
         </template>
       </div>
     </div>
-    <div v-if="previewActive && gcodeFile.lines.length > 0" class="previewBar">
+    <div v-if="gcodeFile.previewActive && gcodeFile.lines.length > 0" class="previewBar">
       <button
         class="previewStep"
         title="一コマンド戻る"
-        :disabled="previewLine === 0"
-        @click="stepPrev"
+        :disabled="gcodeFile.previewLine === 0"
+        @click="gcodeFile.stepPrev"
       >
         <ChevronLeft :size="14" :stroke-width="2" />
       </button>
       <input
-        v-model.number="previewLine"
+        v-model.number="previewLineModel"
         type="range"
         min="0"
         :max="gcodeFile.lines.length"
@@ -484,12 +454,12 @@ onBeforeUnmount(() => {
       <button
         class="previewStep"
         title="一コマンド進める"
-        :disabled="previewLine >= gcodeFile.lines.length"
-        @click="stepNext"
+        :disabled="gcodeFile.previewLine >= gcodeFile.lines.length"
+        @click="gcodeFile.stepNext"
       >
         <ChevronRight :size="14" :stroke-width="2" />
       </button>
-      <span class="previewCount">{{ previewLine }} / {{ gcodeFile.lines.length }}</span>
+      <span class="previewCount">{{ gcodeFile.previewLine }} / {{ gcodeFile.lines.length }}</span>
     </div>
     <div v-if="store.job.running" class="progressOverlay">
       <div class="progressTrack">

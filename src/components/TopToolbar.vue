@@ -3,10 +3,11 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
 import { useIpc } from '@/composables/useIpc'
-import { FolderOpen, Home, Lock, LockOpen, Pause, Play, Settings, Square, TriangleAlert } from '@lucide/vue'
+import { FileCode2, FolderOpen, Home, Lock, LockOpen, Pause, Play, Settings, Square, TriangleAlert } from '@lucide/vue'
 import AppTooltip from '@/components/AppTooltip.vue'
 
-defineEmits<{ 'toggle-settings': [] }>()
+defineProps<{ gcodeTextPanelOpen: boolean }>()
+defineEmits<{ 'toggle-settings': []; 'toggle-gcode-panel': [] }>()
 
 const isFullscreen = ref(false)
 let disposeFullscreen: (() => void) | null = null
@@ -158,6 +159,16 @@ function stop(): void {
       <span class="progressLabel">{{ Math.round(progressPercent * 100) }}% ({{ store.job.currentLine }} / {{ store.job.totalLines }})</span>
     </div>
 
+    <AppTooltip text="Gコードテキスト">
+      <button
+        class="iconButton settingsButton"
+        :class="{ activePanel: gcodeTextPanelOpen }"
+        aria-label="Gコードテキストパネル"
+        @click="$emit('toggle-gcode-panel')"
+      >
+        <FileCode2 :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
     <AppTooltip text="設定">
       <button class="iconButton settingsButton" aria-label="設定" @click="$emit('toggle-settings')">
         <Settings :size="17" :stroke-width="1.75" />
@@ -299,5 +310,8 @@ function stop(): void {
 }
 .settingsButton:hover {
   color: var(--tp);
+}
+.settingsButton.activePanel {
+  color: var(--accent);
 }
 </style>
