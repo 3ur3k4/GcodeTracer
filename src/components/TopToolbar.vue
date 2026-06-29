@@ -29,10 +29,11 @@ const runActive = computed(() =>
 const hasResumePoint = computed(() => gcodeFile.resumeFromLine > 0)
 
 // ジョブが停止したとき(完走でなく途中停止)に再開ポイントを保存する
+// paused=true のまま running が false になるケースに備えて paused チェックも加える
 watch(
   () => store.job.running,
   (running, wasRunning) => {
-    if (!running && wasRunning) {
+    if (!running && wasRunning && !store.job.paused) {
       const stopped = store.job.currentLine
       const total = store.job.totalLines
       if (stopped > 0 && stopped < total) {
