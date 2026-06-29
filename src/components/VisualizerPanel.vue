@@ -66,6 +66,7 @@ const PADDING_PX = 24
 let dragging = false
 let lastPointer = { x: 0, y: 0 }
 let resizeObserver: ResizeObserver | null = null
+let resizeRafId: number | null = null
 const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
 function token(name: string): string {
@@ -386,7 +387,13 @@ watch(
 watch(activePaper, () => draw())
 
 onMounted(() => {
-  resizeObserver = new ResizeObserver(resizeCanvas)
+  resizeObserver = new ResizeObserver(() => {
+    if (resizeRafId !== null) cancelAnimationFrame(resizeRafId)
+    resizeRafId = requestAnimationFrame(() => {
+      resizeRafId = null
+      resizeCanvas()
+    })
+  })
   if (containerRef.value) resizeObserver.observe(containerRef.value)
   darkModeQuery.addEventListener('change', draw)
   resizeCanvas()

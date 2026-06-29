@@ -18,6 +18,8 @@ const MAX_WIDTH = 600
 
 let rszStartX = 0
 let rszStartW = 0
+let rszRafId: number | null = null
+let rszPending: number | null = null
 
 function onResizerDown(e: PointerEvent): void {
   rszStartX = e.clientX
@@ -28,7 +30,12 @@ function onResizerDown(e: PointerEvent): void {
 }
 
 function onResizerMove(e: PointerEvent): void {
-  panelWidth.value = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, rszStartW + (rszStartX - e.clientX)))
+  rszPending = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, rszStartW + (rszStartX - e.clientX)))
+  if (rszRafId !== null) return
+  rszRafId = requestAnimationFrame(() => {
+    if (rszPending !== null) panelWidth.value = rszPending
+    rszRafId = null
+  })
 }
 
 function onResizerUp(): void {
