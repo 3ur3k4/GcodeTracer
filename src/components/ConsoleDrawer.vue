@@ -5,15 +5,23 @@ import { useIpc } from '@/composables/useIpc'
 import { ChevronDown, Send } from '@lucide/vue'
 import type { ConsoleLine } from '@shared/ipcContract'
 
-const emit = defineEmits<{ 'update:open': [value: boolean] }>()
+const props = defineProps<{ modelValue: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
 
 const store = useAppStore()
 const ipc = useIpc()
 
-const isOpen = ref(true)
-watch(isOpen, (val) => emit('update:open', val))
+const isOpen = ref(props.modelValue)
+// 親（リサイザー操作）からの変更を反映
+watch(() => props.modelValue, (val) => { isOpen.value = val })
+// ヘッダークリックによる変更を親に通知
+watch(isOpen, (val) => emit('update:modelValue', val))
 const command = ref('')
 const logEl = ref<HTMLDivElement | null>(null)
+
+const history: string[] = []
+let historyIdx = -1
+let savedInput = ''
 
 function isError(line: ConsoleLine): boolean {
   return line.direction === 'rx' && (line.text.startsWith('error:') || line.text.startsWith('ALARM:'))
@@ -52,7 +60,28 @@ function send(): void {
   const trimmed = command.value.trim()
   if (!trimmed || !store.connection.connected) return
   ipc.sendCommand(trimmed)
+  if (history[0] !== trimmed) {
+    history.unshift(trimmed)
+    if (history.length > 100) history.length = 100
+  }
+  historyIdx = -1
+  savedInput = ''
   command.value = ''
+}
+
+function onKeyDown(event: KeyboardEvent): void {
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    if (history.length === 0) return
+    if (historyIdx === -1) savedInput = command.value
+    historyIdx = Math.min(historyIdx + 1, history.length - 1)
+    command.value = history[historyIdx]
+  } else if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    if (historyIdx === -1) return
+    historyIdx -= 1
+    command.value = historyIdx === -1 ? savedInput : history[historyIdx]
+  }
 }
 
 watch(
@@ -91,6 +120,7 @@ watch(
           type="text"
           placeholder="Gコード / $コマンドを入力"
           :disabled="!store.connection.connected"
+          @keydown="onKeyDown"
         />
         <button class="sendButton" type="submit" :disabled="!store.connection.connected" aria-label="送信">
           <Send :size="18" :stroke-width="1.75" />
