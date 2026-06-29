@@ -11,36 +11,36 @@ const gcodeFile = useGcodeFileStore()
 
 // ────────────────────────────────────────────
 // パネル幅のリサイズ（左端ドラッグ）
+// ドラッグ中は DOM を直接操作して Vue 再描画をスキップ。
+// pointerup 時に一度だけ ref を更新して状態を同期する。
 // ────────────────────────────────────────────
+const panelRef = ref<HTMLDivElement | null>(null)
 const panelWidth = ref(280)
 const MIN_WIDTH = 180
 const MAX_WIDTH = 600
 
 let rszStartX = 0
 let rszStartW = 0
-let rszRafId: number | null = null
-let rszPending: number | null = null
+let rszCurrent = 280
 
 function onResizerDown(e: PointerEvent): void {
   rszStartX = e.clientX
   rszStartW = panelWidth.value
+  rszCurrent = panelWidth.value
   e.preventDefault()
   window.addEventListener('pointermove', onResizerMove)
   window.addEventListener('pointerup', onResizerUp)
 }
 
 function onResizerMove(e: PointerEvent): void {
-  rszPending = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, rszStartW + (rszStartX - e.clientX)))
-  if (rszRafId !== null) return
-  rszRafId = requestAnimationFrame(() => {
-    if (rszPending !== null) panelWidth.value = rszPending
-    rszRafId = null
-  })
+  rszCurrent = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, rszStartW + (rszStartX - e.clientX)))
+  if (panelRef.value) panelRef.value.style.width = `${rszCurrent}px`
 }
 
 function onResizerUp(): void {
   window.removeEventListener('pointermove', onResizerMove)
   window.removeEventListener('pointerup', onResizerUp)
+  panelWidth.value = rszCurrent
 }
 
 // ────────────────────────────────────────────
@@ -100,7 +100,6 @@ const searchQuery = ref('')
 const currentMatchIdx = ref(0)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 
-// 表示範囲内でマッチする行インデックス（元ファイルの行番号）
 const matchIndices = computed<number[]>(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return []
@@ -116,7 +115,6 @@ watch(matchIndices, () => {
   if (matchIndices.value.length) scrollToLine(matchIndices.value[0])
 })
 
-// 検索マッチ箇所をハイライト用に分割
 interface TextPart { text: string; highlight: boolean }
 
 function splitByMatch(text: string, query: string): TextPart[] {
@@ -163,9 +161,6 @@ function onGlobalKeydown(e: KeyboardEvent): void {
   }
 }
 
-onMounted(() => document.addEventListener('keydown', onGlobalKeydown))
-onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
-
 // ────────────────────────────────────────────
 // 行番号ジャンプ
 // ────────────────────────────────────────────
@@ -178,7 +173,7 @@ function onJumpEnter(): void {
 }
 
 // ────────────────────────────────────────────
-// 行の状態（ハイライト種別・複数クラス対応）
+// 行の状態（複数クラス対応）
 // ────────────────────────────────────────────
 function lineState(index: number): Record<string, boolean> {
   const isMatch = matchSet.value.has(index)
@@ -207,18 +202,51 @@ function lineState(index: number): Record<string, boolean> {
 }
 
 // ────────────────────────────────────────────
-// 自動スクロール（visibleLineItems の DOM 順で検索）
+// 仮想スクロール
+// LINE_H は CSS の .line { height } と一致させること
 // ────────────────────────────────────────────
+const LINE_H = 22
+const BUFFER = 8
+
 const listRef = ref<HTMLDivElement | null>(null)
+const listScrollTop = ref(0)
+const listHeight = ref(400)
+
+const visibleStart = computed(() =>
+  Math.max(0, Math.floor(listScrollTop.value / LINE_H) - BUFFER)
+)
+const visibleEnd = computed(() =>
+  Math.min(visibleLineItems.value.length, Math.ceil((listScrollTop.value + listHeight.value) / LINE_H) + BUFFER)
+)
+const virtualItems = computed(() =>
+  visibleLineItems.value.slice(visibleStart.value, visibleEnd.value)
+)
+const paddingTop = computed(() => visibleStart.value * LINE_H)
+const paddingBottom = computed(() =>
+  Math.max(0, (visibleLineItems.value.length - visibleEnd.value) * LINE_H)
+)
+
+function onListScroll(e: Event): void {
+  listScrollTop.value = (e.target as HTMLElement).scrollTop
+}
 
 function scrollToLine(lineIndex: number): void {
   nextTick(() => {
     const pos = visibleLineItems.value.findIndex((item) => item.index === lineIndex)
-    if (pos < 0) return
-    const el = listRef.value?.children[pos] as HTMLElement | undefined
-    el?.scrollIntoView({ block: 'nearest' })
+    if (pos < 0 || !listRef.value) return
+    const itemTop = pos * LINE_H
+    const itemBottom = itemTop + LINE_H
+    const st = listRef.value.scrollTop
+    const ch = listRef.value.clientHeight
+    if (itemTop < st) {
+      listRef.value.scrollTop = itemTop
+    } else if (itemBottom > st + ch) {
+      listRef.value.scrollTop = itemBottom - ch
+    }
   })
 }
+
+let listResizeObserver: ResizeObserver | null = null
 
 watch(() => gcodeFile.previewLine, (pl) => {
   if (gcodeFile.previewActive) scrollToLine(pl - 1)
@@ -235,10 +263,28 @@ function onLineClick(index: number): void {
   if (window.getSelection()?.toString()) return
   gcodeFile.setPreviewLine(index + 1)
 }
+
+onMounted(() => {
+  document.addEventListener('keydown', onGlobalKeydown)
+  nextTick(() => {
+    if (listRef.value) {
+      listHeight.value = listRef.value.clientHeight
+      listResizeObserver = new ResizeObserver(() => {
+        if (listRef.value) listHeight.value = listRef.value.clientHeight
+      })
+      listResizeObserver.observe(listRef.value)
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onGlobalKeydown)
+  listResizeObserver?.disconnect()
+})
 </script>
 
 <template>
-  <div class="panel" :style="{ width: `${panelWidth}px` }">
+  <div ref="panelRef" class="panel" :style="{ width: `${panelWidth}px` }">
     <div class="resizer" @pointerdown="onResizerDown" />
 
     <div class="header">
@@ -255,7 +301,6 @@ function onLineClick(index: number): void {
     </div>
 
     <div v-if="searchBarOpen" class="searchBar">
-      <!-- テキスト検索 -->
       <div class="searchRow">
         <Search :size="16" class="searchIcon" />
         <input
@@ -278,7 +323,6 @@ function onLineClick(index: number): void {
         </button>
       </div>
 
-      <!-- 行番号ジャンプ + 行範囲 -->
       <div class="searchRow subRow">
         <span class="subLabel">L</span>
         <input
@@ -326,26 +370,28 @@ function onLineClick(index: number): void {
       <span>ファイル未読み込み</span>
     </div>
 
-    <div v-else ref="listRef" class="lines">
-      <div
-        v-for="item in visibleLineItems"
-        :key="item.index"
-        class="line"
-        :class="lineState(item.index)"
-        @click="onLineClick(item.index)"
-      >
-        <span class="lineNum">{{ item.index + 1 }}</span>
-        <span class="lineContent">
-          <span v-for="(tok, j) in item.tokens" :key="j" :class="`tok-${tok.type}`">
-            <template v-if="searchQuery.trim() && gcodeFile.lines[item.index].toLowerCase().includes(searchQuery.trim().toLowerCase())">
-              <template v-for="(part, k) in splitByMatch(tok.text, searchQuery.trim())" :key="k">
-                <mark v-if="part.highlight" class="searchHighlight">{{ part.text }}</mark>
-                <template v-else>{{ part.text }}</template>
+    <div v-else ref="listRef" class="lines" @scroll.passive="onListScroll">
+      <div :style="{ paddingTop: `${paddingTop}px`, paddingBottom: `${paddingBottom}px` }">
+        <div
+          v-for="item in virtualItems"
+          :key="item.index"
+          class="line"
+          :class="lineState(item.index)"
+          @click="onLineClick(item.index)"
+        >
+          <span class="lineNum">{{ item.index + 1 }}</span>
+          <span class="lineContent">
+            <span v-for="(tok, j) in item.tokens" :key="j" :class="`tok-${tok.type}`">
+              <template v-if="searchQuery.trim() && gcodeFile.lines[item.index].toLowerCase().includes(searchQuery.trim().toLowerCase())">
+                <template v-for="(part, k) in splitByMatch(tok.text, searchQuery.trim())" :key="k">
+                  <mark v-if="part.highlight" class="searchHighlight">{{ part.text }}</mark>
+                  <template v-else>{{ part.text }}</template>
+                </template>
               </template>
-            </template>
-            <template v-else>{{ tok.text }}</template>
+              <template v-else>{{ tok.text }}</template>
+            </span>
           </span>
-        </span>
+        </div>
       </div>
     </div>
   </div>
@@ -556,17 +602,18 @@ function onLineClick(index: number): void {
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
-  padding: 4px 0;
 }
+/* LINE_H = 22px と一致させること（仮想スクロールの行高さ計算に使用） */
 .line {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  padding: 1px 12px 1px 10px;
+  height: 22px;
+  padding: 0 12px 0 10px;
   cursor: pointer;
   border-left: 3px solid transparent;
-  min-height: 20px;
-  line-height: 1.65;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .line:hover { background-color: var(--surface2); }
 .line.future { opacity: 0.35; }
@@ -591,9 +638,11 @@ function onLineClick(index: number): void {
 .lineContent {
   font-family: var(--font-mono);
   font-size: 12px;
+  line-height: 22px;
   white-space: pre;
   color: var(--tp);
   user-select: text;
+  overflow: hidden;
 }
 .tok-g { color: var(--accent); }
 .tok-m { color: var(--warning); }
