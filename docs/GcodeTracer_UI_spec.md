@@ -548,6 +548,20 @@ X  119.581   Y  76.025   Zoom 305%
 
 ## 5. 実装上の注意事項
 
+### 5.0 リサイズハンドル設計ガイドライン
+
+パネル間の境界ドラッグハンドルは以下のスタイルで統一する。新たにリサイズ可能な境界を追加する場合も同じ仕様に従うこと。
+
+| プロパティ | 値 |
+|---|---|
+| 通常時 background | `var(--border)` |
+| hover/active 時 background | `var(--accent)` |
+| hover/active 時 opacity | `0.4` |
+| カーソル | 水平境界: `ns-resize` / 垂直境界: `ew-resize` |
+
+- 常時 `--border` 色で細線として視認可能にし、hover 時にアクセント色で強調する
+- `user-select: none` を設定してドラッグ中のテキスト選択を防ぐ
+
 ### 5.1 CSS 設計
 
 - CSS 変数（トークン）は `src/styles/tokens.css` の `:root` で定義し、`prefers-color-scheme: dark` で上書きする

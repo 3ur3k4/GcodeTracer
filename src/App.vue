@@ -151,7 +151,7 @@ onUnmounted(() => {
   user-select: none;
 }
 .resizer:hover {
-  background-color: var(--ts);
+  background-color: var(--accent);
   opacity: 0.4;
 }
 .settingsAnchor {
