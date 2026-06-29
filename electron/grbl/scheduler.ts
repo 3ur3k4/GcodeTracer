@@ -28,6 +28,7 @@ interface QueuedCommand {
   command: string
   byteLength: number
   onComplete?: (result: AckResult) => void
+  onSend?: () => void
 }
 
 export class GrblScheduler {
@@ -53,9 +54,9 @@ export class GrblScheduler {
    * onCompleteは「このコマンド自身」のok/error受信時にのみ呼ばれる(FIFO順で対応付けるため、
    * コンソール送信とジョブ送信が同じキューを共有しても互いの進捗を誤って進めない)。
    */
-  enqueue(line: string, onComplete?: (result: AckResult) => void): void {
+  enqueue(line: string, onComplete?: (result: AckResult) => void, onSend?: () => void): void {
     const command = line.endsWith('\n') ? line : `${line}\n`
-    this.queue.push({ command, byteLength: command.length, onComplete })
+    this.queue.push({ command, byteLength: command.length, onComplete, onSend })
     this.pump()
   }
 
@@ -91,6 +92,7 @@ export class GrblScheduler {
       this.bufferUsed += next.byteLength
       this.inFlight.push(next)
       this.transport.write(next.command)
+      next.onSend?.()
     }
   }
 

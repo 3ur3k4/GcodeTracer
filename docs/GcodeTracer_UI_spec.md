@@ -386,17 +386,33 @@ G91 G0 G21 Z{dz}            # Z移動
 | 状態 | 適用条件 | スタイル |
 |---|---|---|
 | `head` | プレビュー時の最終完了行（index = previewLine − 1） | 左ボーダー `--accent`・背景 accent 8% |
-| `current` | ジョブ実行中の現在行（index = job.currentLine） | 左ボーダー `--accent`・背景 accent 14% |
-| `done` | 完了済み行 | 通常スタイル |
-| `future` | 未実行行（プレビュー or ジョブ実行中） | opacity 0.35 |
+| `current` | ジョブ実行中・ok受信済みの最終行（index = job.currentLine） | 左ボーダー `--accent`・背景 accent 14% |
+| `inflight` | GRBLバッファ内の行（currentLine < index < sentLine） | 背景 accent 6%・opacity 0.7 |
+| `done` | ok受信完了済み行（index < currentLine） | 通常スタイル |
+| `future` | 未送信行（index ≥ sentLine） | opacity 0.35 |
 | `match` | 検索クエリにマッチする行 | 背景 `#e8a020` 6% |
 | `current-match` | 現在フォーカスされているマッチ行 | 背景 `#e8a020` 14% |
+
+`sentLine` は `jobRunner` が `scheduler.enqueue()` の `onSend` コールバック経由で更新する実送信行数（1-based）。`scheduler.pump()` が実際に `transport.write()` した瞬間にインクリメントされるため、127バイトバッファの充填状況をリアルタイムに反映する。
+
+**ヘッダー: 自動スクロールトグル**
+
+ジョブ実行中 / 一時停止中のみ、ヘッダーに `OK` / `TX` のセグメントトグルを表示する。
+
+| ボタン | 追従する行 | 備考 |
+|---|---|---|
+| `OK` | `job.currentLine`（ok受信済み最終行） | デフォルト |
+| `TX` | `job.sentLine - 1`（最後に実際に送信した行） | |
+| ―（両方非アクティブ） | 追従なし | アクティブ中のボタンを再押しで切り替え |
+
+追従スクロールは常に**ビューポート中央**を目標位置とする（`scrollTop = itemTop − clientHeight/2 + LINE_H/2`）。
 
 **インタラクション**
 
 - 行クリック → `gcodeFile.setPreviewLine(index + 1)` を呼び、プレビューモードを ON にしてビジュアライザーと連動
-- プレビュースライダー操作 → テキストパネルが head 行に自動スクロール（`scrollIntoView({ block: 'nearest' })`）
-- ジョブ実行中の `job.currentLine` 変化 → current 行に自動スクロール（プレビューモード OFF 時のみ）
+- プレビュースライダー操作 → テキストパネルが head 行に自動スクロール（`block: 'nearest'` 相当の最小スクロール）
+- ジョブ実行中: `followMode` に応じて `job.currentLine` または `job.sentLine` の変化を監視し、対象行をビューポート中央へ自動スクロール（プレビューモード OFF 時のみ）
+- トグル切り替え時 → 即座に対象行へスクロール
 
 **状態の共有（アーキテクチャ）**
 

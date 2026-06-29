@@ -190,10 +190,13 @@ function lineState(index: number): Record<string, boolean> {
     }
   }
   if (store.job.running || store.job.paused) {
+    const completed = store.job.currentLine
+    const sent = store.job.sentLine
     return {
-      current: index === store.job.currentLine,
-      done: index < store.job.currentLine,
-      future: index > store.job.currentLine,
+      current: index === completed,
+      inflight: index > completed && index < sent,
+      done: index < completed,
+      future: index >= sent,
       match: isMatch,
       'current-match': isCurrentMatch,
     }
@@ -230,18 +233,22 @@ function onListScroll(e: Event): void {
   listScrollTop.value = (e.target as HTMLElement).scrollTop
 }
 
-function scrollToLine(lineIndex: number): void {
+function scrollToLine(lineIndex: number, center = false): void {
   nextTick(() => {
     const pos = visibleLineItems.value.findIndex((item) => item.index === lineIndex)
     if (pos < 0 || !listRef.value) return
     const itemTop = pos * LINE_H
-    const itemBottom = itemTop + LINE_H
-    const st = listRef.value.scrollTop
     const ch = listRef.value.clientHeight
-    if (itemTop < st) {
-      listRef.value.scrollTop = itemTop
-    } else if (itemBottom > st + ch) {
-      listRef.value.scrollTop = itemBottom - ch
+    if (center) {
+      listRef.value.scrollTop = itemTop - ch / 2 + LINE_H / 2
+    } else {
+      const itemBottom = itemTop + LINE_H
+      const st = listRef.value.scrollTop
+      if (itemTop < st) {
+        listRef.value.scrollTop = itemTop
+      } else if (itemBottom > st + ch) {
+        listRef.value.scrollTop = itemBottom - ch
+      }
     }
   })
 }
@@ -252,8 +259,31 @@ watch(() => gcodeFile.previewLine, (pl) => {
   if (gcodeFile.previewActive) scrollToLine(pl - 1)
 })
 
+// ────────────────────────────────────────────
+// 自動スクロールの軸: 'ok'=ok受信行, 'tx'=送信行, null=追従なし
+// ────────────────────────────────────────────
+const followMode = ref<'ok' | 'tx' | null>('ok')
+
+function setFollowMode(mode: 'ok' | 'tx'): void {
+  followMode.value = followMode.value === mode ? null : mode
+}
+
+function jobActive(): boolean {
+  return !gcodeFile.previewActive && (store.job.running || store.job.paused)
+}
+
 watch(() => store.job.currentLine, (line) => {
-  if (!gcodeFile.previewActive && (store.job.running || store.job.paused)) scrollToLine(line)
+  if (followMode.value === 'ok' && jobActive()) scrollToLine(line, true)
+})
+
+watch(() => store.job.sentLine, (line) => {
+  if (followMode.value === 'tx' && jobActive()) scrollToLine(line - 1, true)
+})
+
+watch(followMode, (mode) => {
+  if (!jobActive()) return
+  if (mode === 'ok') scrollToLine(store.job.currentLine, true)
+  else if (mode === 'tx') scrollToLine(store.job.sentLine - 1, true)
 })
 
 // ────────────────────────────────────────────
@@ -292,6 +322,10 @@ onBeforeUnmount(() => {
       <span v-if="gcodeFile.fileName" class="fileName" :title="gcodeFile.fileName">
         {{ gcodeFile.fileName }}
       </span>
+      <div v-if="store.job.running || store.job.paused" class="followToggle" title="自動スクロールの軸">
+        <button :class="{ active: followMode === 'ok' }" @click="setFollowMode('ok')">OK</button>
+        <button :class="{ active: followMode === 'tx' }" @click="setFollowMode('tx')">TX</button>
+      </div>
       <button class="headerBtn" :class="{ active: searchBarOpen }" title="検索 (⌘F)" @click="searchBarOpen ? closeSearchBar() : openSearchBar()">
         <Search :size="16" :stroke-width="2" />
       </button>
@@ -448,6 +482,33 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   opacity: 0.6;
+}
+.followToggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  flex: none;
+}
+.followToggle button {
+  height: 24px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ts);
+  background: var(--surface2);
+  border: none;
+  cursor: pointer;
+}
+.followToggle button + button {
+  border-left: 1px solid var(--border);
+}
+.followToggle button:hover { color: var(--tp); }
+.followToggle button.active {
+  background-color: var(--accent);
+  color: var(--bg);
 }
 .headerBtn {
   display: flex;
@@ -617,6 +678,10 @@ onBeforeUnmount(() => {
 }
 .line:hover { background-color: var(--surface2); }
 .line.future { opacity: 0.35; }
+.line.inflight {
+  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
+  opacity: 0.7;
+}
 .line.current {
   background-color: color-mix(in srgb, var(--accent) 14%, transparent);
   border-left-color: var(--accent);

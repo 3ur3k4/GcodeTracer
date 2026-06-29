@@ -43,7 +43,7 @@ describe('JobRunner', () => {
     await flushUntilDone(jobRunner)
 
     expect(transport.writes).toEqual(['G0 X1\n', 'G0 X2\n', 'G0 X3\n'])
-    expect(state.getState().job).toEqual({ running: false, paused: false, currentLine: 3, totalLines: 3 })
+    expect(state.getState().job).toEqual({ running: false, paused: false, currentLine: 3, sentLine: 3, totalLines: 3 })
   })
 
   it('pause stops new sends (already-sent lines still complete) and resume continues', async () => {
@@ -75,7 +75,7 @@ describe('JobRunner', () => {
 
     expect(scheduler.pendingCount).toBe(1) // 送信済みの1行目はscheduler内に残るが、jobとしては終了済み
     expect(jobRunner.isRunning()).toBe(false)
-    expect(state.getState().job).toEqual({ running: false, paused: false, currentLine: 0, totalLines: 0 })
+    expect(state.getState().job).toEqual({ running: false, paused: false, currentLine: 0, sentLine: 0, totalLines: 0 })
 
     await flushMicrotasks()
     expect(state.getState().job.currentLine).toBe(0) // cancel後のokは進捗に反映されない

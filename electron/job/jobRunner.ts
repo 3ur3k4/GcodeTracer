@@ -14,6 +14,7 @@ export class JobRunner {
 
   private lines: string[] = []
   private sentCount = 0
+  private transmittedCount = 0
   private completedCount = 0
   private running = false
   private paused = false
@@ -30,10 +31,11 @@ export class JobRunner {
   start(lines: string[], startLine = 0): void {
     this.lines = lines
     this.sentCount = startLine
+    this.transmittedCount = startLine
     this.completedCount = startLine
     this.running = true
     this.paused = false
-    this.state.setJobProgress({ running: true, paused: false, currentLine: startLine, totalLines: lines.length })
+    this.state.setJobProgress({ running: true, paused: false, currentLine: startLine, sentLine: startLine, totalLines: lines.length })
     this.pump()
   }
 
@@ -60,8 +62,9 @@ export class JobRunner {
     this.paused = false
     this.lines = []
     this.sentCount = 0
+    this.transmittedCount = 0
     this.completedCount = 0
-    this.state.setJobProgress({ running: false, paused: false, currentLine: 0, totalLines: 0 })
+    this.state.setJobProgress({ running: false, paused: false, currentLine: 0, sentLine: 0, totalLines: 0 })
   }
 
   private pump(): void {
@@ -69,8 +72,15 @@ export class JobRunner {
     while (this.sentCount < this.lines.length) {
       const line = this.lines[this.sentCount]
       this.sentCount += 1
-      this.state.appendConsoleLine('tx', line)
-      this.scheduler.enqueue(line, (result) => this.onLineComplete(result))
+      const transmitIndex = this.sentCount
+      this.scheduler.enqueue(
+        line,
+        (result) => this.onLineComplete(result),
+        () => {
+          this.transmittedCount = transmitIndex
+          this.state.setJobProgress({ sentLine: this.transmittedCount })
+        },
+      )
     }
   }
 
@@ -84,7 +94,7 @@ export class JobRunner {
       // バッファ待ちのもの)も、ここで明示的に破棄しないと送信され続けてしまうため必ずclearQueueする。
       this.scheduler.clearQueue()
       this.running = false
-      this.state.setJobProgress({ running: false, paused: false })
+      this.state.setJobProgress({ running: false, paused: false, sentLine: this.transmittedCount })
       return
     }
 

@@ -91,6 +91,7 @@ export const appStateSchema = z.object({
     running: z.boolean(),
     paused: z.boolean(),
     currentLine: z.number().int(),
+    sentLine: z.number().int(),
     totalLines: z.number().int(),
   }),
   osc: z.object({
@@ -112,7 +113,7 @@ export const initialAppState: AppState = {
     mpos: { x: 0, y: 0, z: 0 },
     wpos: { x: 0, y: 0, z: 0 },
   },
-  job: { running: false, paused: false, currentLine: 0, totalLines: 0 },
+  job: { running: false, paused: false, currentLine: 0, sentLine: 0, totalLines: 0 },
   osc: { ip: '127.0.0.1', port: 9000, enabled: false },
   console: { lines: [] },
 }

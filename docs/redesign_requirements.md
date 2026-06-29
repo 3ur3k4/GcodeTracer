@@ -172,7 +172,7 @@ interface AppState {
     mpos: { x: number; y: number; z: number }
     wpos: { x: number; y: number; z: number }
   }
-  job: { running: boolean; paused: boolean; currentLine: number; totalLines: number }
+  job: { running: boolean; paused: boolean; currentLine: number; sentLine: number; totalLines: number }
   osc: { ip: string; port: number; enabled: boolean }
 }
 ```
@@ -186,13 +186,14 @@ interface AppState {
 1. Renderer: ファイル選択・読み込み。可視化用にツールパスを生成(表示のみ、送信ロジックとは独立)
 2. Renderer → Gateway: `run-file` をdispatch(Gコード行配列)
 3. Gateway → `job/jobRunner.ts`: ジョブ開始
-4. `job/jobRunner.ts` → `grbl/scheduler.ts`: 行の送信を要求
-5. `grbl/scheduler.ts`: バッファ残量を確認しTransportへwrite
-6. GRBL: `ok` 応答
-7. `grbl/parser.ts`: `ok`を検出 → `grbl/scheduler.ts`にバッファ解放を通知
-8. `grbl/scheduler.ts`: 次の行を送信
-9. `grbl/state.ts`: 進捗(currentLine/totalLines)を更新 → Gateway経由でRendererへpush
-10. 6〜9を繰り返し、完了・エラー・キャンセルで`job/jobRunner.ts`が終了処理
+4. `job/jobRunner.ts` → `grbl/scheduler.ts`: 全行を `enqueue`（各行に `onComplete` / `onSend` コールバックを登録）
+5. `grbl/scheduler.ts`: バッファ残量を確認しTransportへwrite。write直後に `onSend` を呼び出す
+6. `job/jobRunner.ts`: `onSend` が呼ばれるたびに `sentLine`（実際に送信した行数）を更新 → Rendererへpush
+7. GRBL: `ok` 応答
+8. `grbl/parser.ts`: `ok`を検出 → `grbl/scheduler.ts`にバッファ解放を通知
+9. `grbl/scheduler.ts`: 次のキュー行をwrite（`onSend` が再び呼ばれ `sentLine` が進む）
+10. `grbl/state.ts`: 進捗(`currentLine` / `sentLine` / `totalLines`)を更新 → Gateway経由でRendererへpush
+11. 7〜10を繰り返し、完了・エラー・キャンセルで`job/jobRunner.ts`が終了処理
 
 **ステータス監視と外部送信**
 
