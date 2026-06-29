@@ -28,6 +28,7 @@ export interface GatewayHandlers {
   cancel(): void
   setPollInterval(ms: number): void
   updateOscSettings(ip: string, port: number, enabled: boolean): void
+  revealFile(filePath: string): void
   listPorts(): Promise<PortInfo[]>
 }
 
@@ -126,6 +127,9 @@ export class IpcGateway {
           break
         case 'update-osc-settings':
           this.handlers.updateOscSettings(message.ip, message.port, message.enabled)
+          break
+        case 'reveal-file':
+          this.handlers.revealFile(message.filePath)
           break
       }
     } catch (err) {

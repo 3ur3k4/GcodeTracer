@@ -61,5 +61,8 @@ export function useIpc() {
     updateOscSettings(ip: string, port: number, enabled: boolean): void {
       dispatch({ type: 'update-osc-settings', ip, port, enabled })
     },
+    revealFile(filePath: string): void {
+      dispatch({ type: 'reveal-file', filePath })
+    },
   }
 }

@@ -65,7 +65,7 @@ function onFileChange(event: Event): void {
   const reader = new FileReader()
   reader.onload = () => {
     if (store.job.running || store.job.paused) ipc.cancel()
-    gcodeFile.load(file.name, String(reader.result ?? ''))
+    gcodeFile.load(file.name, String(reader.result ?? ''), (file as File & { path: string }).path)
   }
   reader.readAsText(file)
   input.value = ''

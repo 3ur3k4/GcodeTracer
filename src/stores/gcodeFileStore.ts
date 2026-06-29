@@ -13,6 +13,7 @@ import type { ToolPath } from '@/lib/gcodeToPath'
 
 export const useGcodeFileStore = defineStore('gcodeFile', () => {
   const fileName = ref('')
+  const filePath = ref('')
   const lines = ref<string[]>([])
   const resumeFromLine = ref(0)
 
@@ -29,8 +30,9 @@ export const useGcodeFileStore = defineStore('gcodeFile', () => {
     return Array.from(set).sort((a, b) => a - b)
   })
 
-  function load(name: string, text: string): void {
+  function load(name: string, text: string, path = ''): void {
     fileName.value = name
+    filePath.value = path
     lines.value = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
     resumeFromLine.value = 0
     previewActive.value = false
@@ -39,6 +41,7 @@ export const useGcodeFileStore = defineStore('gcodeFile', () => {
 
   function clear(): void {
     fileName.value = ''
+    filePath.value = ''
     lines.value = []
     resumeFromLine.value = 0
     previewActive.value = false
@@ -87,6 +90,7 @@ export const useGcodeFileStore = defineStore('gcodeFile', () => {
 
   return {
     fileName,
+    filePath,
     lines,
     resumeFromLine,
     previewActive,

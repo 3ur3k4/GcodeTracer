@@ -35,6 +35,7 @@ export const rendererToMainMessageSchema = z.discriminatedUnion('type', [
     port: z.number().int().min(1).max(65535),
     enabled: z.boolean(),
   }),
+  z.object({ type: z.literal('reveal-file'), filePath: z.string().min(1) }),
 ])
 
 export type RendererToMainMessage = z.infer<typeof rendererToMainMessageSchema>

@@ -2,7 +2,7 @@
  * コンポジションルート。各モジュールを外部依存として注入し、実際の結線(wiring)のみを行う。
  * main.tsから分離することで、テスト時はcreateTransportにMockTransportを注入できるようにする(8.3節)。
  */
-import type { BrowserWindow } from 'electron'
+import { shell, type BrowserWindow } from 'electron'
 import { GrblState } from './grbl/state'
 import { GrblParser } from './grbl/parser'
 import { GrblScheduler } from './grbl/scheduler'
@@ -158,6 +158,10 @@ export function createApp(deps: AppDeps): App {
 
     updateOscSettings(ip, port, enabled) {
       state.setOscSettings({ ip, port, enabled })
+    },
+
+    revealFile(filePath) {
+      shell.showItemInFolder(filePath)
     },
   }
 
