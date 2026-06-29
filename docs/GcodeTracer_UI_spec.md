@@ -107,10 +107,14 @@
 | Lock / Unlock | `Lock`(Alarm時) / `LockOpen`(それ以外) | 接続済み | Alarm状態時に `$X` アンロック。非Alarm時はクリック無効 |
 | — | セパレーター (1px × 24px) | — | — |
 | Soft Reset | `TriangleAlert` | 常時 | `0x18` 送信 |
+| — | Spacer（flex: 1） | — | 右側要素を右端に押し出す |
+| G-CODE パネル | `FileCode2` | 常時 | Gコードテキストパネルのトグル。アクティブ時は color `--accent` |
+| Settings | `Settings` | 常時 | Settings Drawer のトグル |
 
 - **Run ボタン**: 塗りつぶしスタイル（bg `--accent`・border `--accent`・icon color `--surface`）
 - **Soft Reset ボタン**: 塗りつぶしスタイル（bg `--danger`・border `--danger`・icon color `--surface`）
 - **Lock/Unlock ボタン**: `machineState === 'Alarm'` 時は `--warning` border+color で `Lock` アイコン。それ以外は `LockOpen` アイコンをデフォルトスタイルで表示
+- **G-CODE パネルボタン・Settings ボタン**: アクティブ時（パネル表示中）は color `--accent`（塗りつぶしではなくアイコン色のみ変化）
 - 全ボタンに `AppTooltip` を適用し、ホバー500ms後にツールチップを表示。Gコードコマンドを送信するボタンにはサブテキスト（コマンド文字列）も表示
 
 #### 再開ポイントラベル（Spacer右）
@@ -470,22 +474,28 @@ X  119.581   Y  76.025   Zoom 305%
 
 ### 3.5 Status Ribbon
 
-**高さ**: 24px  
+**高さ**: 30px  
 **背景**: `--surface`  
 **上境界**: `1px solid --border`  
 **padding**: 0 10px
 
 ```
-● /dev/tty.usbmodem1101    ● OSC 192.168.1.10:8000          ⚙
+● /dev/tty.usbmodem1101    ● OSC 192.168.1.10:8000          tree_L_A5_04.gcode  1,234 lines
 ```
 
 | 要素 | 仕様 |
 |---|---|
-| Serial インジケーター | 5px丸dot + ポート名。接続中: `--accent`・切断中: `--ts` |
-| OSC インジケーター | 5px丸dot + `OSC {ip}:{port}` / `OSC off`。有効: `--accent`・無効: `--ts` |
-| Settings ボタン | Lucide `Settings`（右端）。クリックでSettings Drawerを開閉 |
+| Serial インジケーター | 6px丸dot + ポート名。接続中: `--accent`・切断中: `--ts` |
+| OSC インジケーター | 6px丸dot + `OSC {ip}:{port}` / `OSC off`。有効: `--accent`・無効: `--ts` |
+| Spacer | `flex: 1` でファイル情報を右端に押し出す |
+| ファイル情報 | 右端に表示。ファイル読込済み時: ファイル名（`--tp`・`font-mono`・最大260px省略）+ 行数（`N,NNN lines`・`--ts` opacity 0.5）。未読込時: "No file loaded"（`--ts` opacity 0.5） |
 
-テキスト: 10px・`--ts`
+**ファイル名クリック動作**:
+- ファイルパスが既知の場合（`gcodeFileStore.filePath` が空でない場合）、ファイル名は `cursor: pointer` かつホバー時 color `--accent` で表示
+- クリックすると `shell.showItemInFolder(filePath)` を呼び出し、Finder でファイルの場所を表示する
+- ファイルパスの取得には `webUtils.getPathForFile(file)`（Electron 32+ で `file.path` の代替として導入）を使用し、preload で `window.api.getPathForFile(file)` として公開する
+
+テキスト: 12px・`--ts`
 
 ---
 
@@ -625,6 +635,7 @@ X  119.581   Y  76.025   Zoom 305%
 
 - `contextIsolation: true` / `nodeIntegration: false` / `sandbox: true` を明示設定する
 - Preload では `contextBridge.exposeInMainWorld('api', ...)` のみでレンダラーに API を公開する
+- Electron 32 以降、`<input type="file">` で取得した `File` オブジェクトの `file.path` プロパティは廃止された。ファイルの実パスが必要な場合は preload で `webUtils.getPathForFile(file)` を呼び `window.api.getPathForFile(file)` として公開すること
 
 ### 5.6 アプリアイコン
 
