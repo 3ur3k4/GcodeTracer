@@ -319,7 +319,36 @@ G91 G0 G21 Z{dz}            # Z移動
 
 - 左: "G-CODE" ラベル（`font-mono`・10px・`--ts`・letter-spacing 0.08em）
 - 中: ファイル名（`font-mono`・10px・`--ts`・opacity 0.6・省略表示）
-- 右: `×` 閉じるボタン（20px 正方形）
+- 右: 🔍 検索ボタン（Search アイコン、アクティブ時 `--accent` 反転）・`×` 閉じるボタン（各 20px 正方形）
+
+#### 検索バー（`searchBarOpen` が true の場合にヘッダー直下に表示）
+
+2行構成で折りたたみ可能。`⌘F` で開き、`Esc` で閉じる。
+
+**Row 1 — テキスト検索**
+
+- 🔍 アイコン + テキスト入力（`font-mono` 11px）
+- マッチカウント表示（`N/M` 形式、0 件時は "0件"）
+- 前へ（ChevronUp）/ 次へ（ChevronDown）ボタン
+- `Enter` → 次のマッチへ、`⇧Enter` → 前のマッチへ
+- 閉じる（`×`）ボタン
+
+**Row 2 — 行番号ジャンプ + 行範囲フィルター**
+
+- "L" ラベル + 行番号入力（52px）+ `Enter` / CornerDownLeft ボタン
+- 仕切り線
+- 開始行入力（44px）・`〜`・終了行入力（44px）
+- 範囲指定中のみ `×` クリアボタンを表示
+
+**検索ハイライトスタイル**
+
+| 状態 | スタイル |
+|---|---|
+| マッチ行 | 行背景 `#e8a020` 6% |
+| 現在マッチ行 | 行背景 `#e8a020` 14% |
+| マッチ箇所（`<mark>`） | 背景 `#e8a020` 45%・`border-radius: 2px` |
+
+行範囲フィルターが有効な場合、範囲外の行は DOM から非表示（`visibleLineItems` で除外）となるため、`scrollToLine` は `visibleLineItems` 内での DOM 位置で検索する。
 
 #### ライン一覧
 
@@ -339,12 +368,16 @@ G91 G0 G21 Z{dz}            # Z移動
 
 **行の状態とスタイル**
 
+`lineState()` は複数クラスを同時に付与できる `Record<string, boolean>` を返す。
+
 | 状態 | 適用条件 | スタイル |
 |---|---|---|
 | `head` | プレビュー時の最終完了行（index = previewLine − 1） | 左ボーダー `--accent`・背景 accent 8% |
 | `current` | ジョブ実行中の現在行（index = job.currentLine） | 左ボーダー `--accent`・背景 accent 14% |
 | `done` | 完了済み行 | 通常スタイル |
 | `future` | 未実行行（プレビュー or ジョブ実行中） | opacity 0.35 |
+| `match` | 検索クエリにマッチする行 | 背景 `#e8a020` 6% |
+| `current-match` | 現在フォーカスされているマッチ行 | 背景 `#e8a020` 14% |
 
 **インタラクション**
 
