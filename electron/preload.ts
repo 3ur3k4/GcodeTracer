@@ -1,7 +1,7 @@
 /**
  * contextBridgeで`window.api`のみを公開する。Node API・ipcRendererそのものはRendererに渡さない。
  */
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '../shared/ipcContract'
 import type { AppState, PortInfo, RendererToMainMessage } from '../shared/ipcContract'
 
@@ -21,6 +21,9 @@ const api = {
     const listener = (_event: Electron.IpcRendererEvent, value: boolean) => callback(value)
     ipcRenderer.on(IPC_CHANNELS.fullscreenChanged, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.fullscreenChanged, listener)
+  },
+  getPathForFile(file: File): string {
+    return webUtils.getPathForFile(file)
   },
 }
 
