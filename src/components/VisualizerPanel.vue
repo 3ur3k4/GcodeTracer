@@ -20,6 +20,17 @@ const previewLineModel = computed({
   set: (v: number) => { gcodeFile.previewLine = v },
 })
 
+// プレビューヘッドの座標 (最後に完了したセグメントの終点)
+const previewHeadPos = computed(() => {
+  const segs = gcodeFile.toolPath.segments
+  for (let i = segs.length - 1; i >= 0; i--) {
+    if (segs[i].sourceLine < gcodeFile.previewLine) {
+      return { x: segs[i].x2, y: segs[i].y2 }
+    }
+  }
+  return { x: 0, y: 0 }
+})
+
 const progressPercent = computed(() => {
   if (store.job.totalLines === 0) return 0
   return Math.round((store.job.currentLine / store.job.totalLines) * 100)
@@ -402,9 +413,13 @@ onBeforeUnmount(() => {
     />
     <div class="overlay">
       <span class="overlayLabel">X</span>
-      <span class="overlayValue">{{ store.grbl.wpos.x.toFixed(3) }}</span>
+      <span class="overlayValue">
+        {{ (gcodeFile.previewActive ? previewHeadPos.x : store.grbl.wpos.x).toFixed(3) }}
+      </span>
       <span class="overlayLabel">Y</span>
-      <span class="overlayValue">{{ store.grbl.wpos.y.toFixed(3) }}</span>
+      <span class="overlayValue">
+        {{ (gcodeFile.previewActive ? previewHeadPos.y : store.grbl.wpos.y).toFixed(3) }}
+      </span>
       <span class="overlayLabel">Zoom</span>
       <span class="overlayValue">{{ zoomPercent }}%</span>
     </div>
