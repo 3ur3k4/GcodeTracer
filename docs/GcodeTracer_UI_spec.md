@@ -237,7 +237,7 @@ G91 G0 G21 Z{dz}            # Z移動
 | 補助線 | その他 | `--grid-line` | 0.5px | 1.0 |
 
 - 座標ラベル: 原点線・主要線にのみ表示（補助線は省略）。`font-mono`・10px・color `--ts`
-- ダブルクリックで `fitToView()` 実行（ツールパスにフィット）
+- ダブルクリックで `fitToView()` 実行（ツールパスにフィット）。ツールパスが空の場合は GRBL 座標原点 (0,0) を左下に配置（scale=1、左下 `PADDING_PX` マージン）
 
 #### ツールパス描画
 
@@ -296,9 +296,16 @@ X  119.581   Y  76.025   Zoom 305%
 
 ### 3.4 Console Drawer
 
-**高さ**: Visualizerとの境界をドラッグで可変（最小80px〜）。境界線は高さ5pxの `--border` 色バー（`cursor: ns-resize`）  
+**高さ**: Visualizerとの境界をドラッグで可変。境界線は高さ3pxの `--border` 色バー（`cursor: ns-resize`）  
 **背景**: `--surface`  
 **上境界**: `1px solid --border`
+
+**リサイズ・スナップ挙動**:
+- 境界線は常時表示（最小化中も消えない）し、常にドラッグ可能
+- 下方向ドラッグで `CONSOLE_H_MIN`（40px）を下回ったとき最小化（ヘッダーのみ 30px）にスナップ
+- 最小化中に上方向へ 20px 以上ドラッグするとオープンにスナップ（高さ `CONSOLE_H_MIN` で開き、そのまま高さ調整可能）
+- ヘッダークリックで開いた場合、`consoleH < 160px` のときはデフォルト高さ 160px で開く
+- `consoleOpen` は App.vue が単一の真実の源とし、ConsoleDrawer は `v-model` で双方向同期（リサイザー操作とヘッダークリックが常に一致）
 
 #### ヘッダー（30px）
 
@@ -337,6 +344,7 @@ X  119.581   Y  76.025   Zoom 305%
 - 左: `>` プロンプト（`font-mono`・12px・`--ts`）
 - 中: テキスト入力（border none・bg transparent）
 - 右: 送信ボタン（Lucide `Send`・hover時 color `--accent`）
+- **コマンド履歴**: 送信済みコマンドを最大100件保持。↑キーで過去コマンドを遡り、↓キーで戻る。履歴を辿り始める前の入力内容は保持され、↓キーで最新まで戻ると復元される。直前と同一コマンドは重複登録しない
 
 ---
 
@@ -473,6 +481,7 @@ X  119.581   Y  76.025   Zoom 305%
 - グリッドの float ドリフトを避けるため、座標は `idx * step` の整数インデックス乗算で算出する（`x += step` の累積加算は使用しない）
 - CSS 変数は Canvas 2D の `font` プロパティに直接渡せないため、`getComputedStyle` で解決した実値を使う
 - **テーマ切り替え対応**: `window.matchMedia('(prefers-color-scheme: dark)')` の `change` イベントを購読し、OS のライト/ダーク切り替え時に即座に `draw()` を呼び出す。購読はコンポーネントの `onBeforeUnmount` で解除する
+- **高DPI（Retina）対応**: `resizeCanvas()` では `canvas.width/height` を `container.clientWidth/Height × devicePixelRatio` で設定し、`ctx.scale(devicePixelRatio, devicePixelRatio)` で描画座標系を CSS ピクセルに合わせる。描画・レイアウト計算では `canvas.clientWidth/clientHeight`（CSS ピクセル）を参照し、`canvas.width/height`（物理ピクセル）は参照しない
 
 ### 5.4 gcodeToPath
 
