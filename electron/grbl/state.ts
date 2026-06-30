@@ -51,15 +51,19 @@ export class GrblState {
     this.notify()
   }
 
-  appendConsoleLine(direction: ConsoleLine['direction'], text: string): void {
+  appendConsoleLine(direction: ConsoleLine['direction'], text: string, isError = false): void {
     this.state.console.lines.push({ id: this.nextConsoleId++, direction, text, timestamp: Date.now() })
     if (this.state.console.lines.length > MAX_CONSOLE_LINES) this.state.console.lines.shift()
+    if (isError) this.state.console.hasError = true
     this.notify()
   }
 
   applyGrblEvent(event: GrblEvent): void {
     switch (event.type) {
       case 'status': {
+        if (this.state.grbl.machineState === 'Alarm' && event.machineState !== 'Alarm') {
+          this.state.console.hasError = false
+        }
         this.state.grbl.machineState = event.machineState
         if (event.wco) this.lastWco = event.wco
         if (event.mpos) {
@@ -78,11 +82,11 @@ export class GrblState {
         this.appendConsoleLine('rx', 'ok')
         return // appendConsoleLineが既にnotify済み
       case 'error':
-        this.appendConsoleLine('rx', `error:${event.code} ${formatErrorCode(event.code)}`)
+        this.appendConsoleLine('rx', `error:${event.code} ${formatErrorCode(event.code)}`, true)
         return
       case 'alarm':
         this.state.grbl.machineState = 'Alarm'
-        this.appendConsoleLine('rx', `ALARM:${event.code} ${formatAlarmCode(event.code)}`)
+        this.appendConsoleLine('rx', `ALARM:${event.code} ${formatAlarmCode(event.code)}`, true)
         return
       case 'feedback':
         this.appendConsoleLine('rx', `[${event.message}]`)

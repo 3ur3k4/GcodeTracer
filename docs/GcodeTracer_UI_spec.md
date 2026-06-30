@@ -464,17 +464,38 @@ X  119.581   Y  76.025   Zoom 305%
 
 #### ヘッダー（30px）
 
-- 左: 6px丸dot（`--accent`固定）+ "Console"ラベル（11px・`--ts`・letter-spacing 0.08em・大文字）
+- 左: 6px丸dot + "Console"ラベル（11px・`--ts`・letter-spacing 0.08em・大文字）
 - 右: `ChevronDown` アイコン（開状態で180°回転）
+
+**dot のステータスカラー**
+
+| 色 | 条件 |
+|---|---|
+| `--accent`（緑） | デフォルト（`AppState.console.hasError === false`） |
+| `--danger`（赤） | `AppState.console.hasError === true` |
+
+`hasError` は `grbl/state.ts` が管理するフラグであり、コンソールの `lines` 配列をレンダラ側でスキャンして判定してはならない。`hasError` が `true` になる契機と `false` へのリセット契機は要件定義書 6.4 節を参照。
 
 #### ログエリア
 
 - padding: 4px 10px
 - フォント: `font-mono`・12px・line-height 1.65
 - 最大行数: 500行（超過分は先頭から削除）
-- 新規行追加時に自動スクロール（最下部へ）
 - `ok` のみのレスポンスで直前に tx 行が存在する場合は非表示（冗長な確認OKを隠す）
 - ログテキストは `user-select: text` で範囲選択・コピー可能
+
+**ジョブ実行中の `ok` 表示について**
+
+ジョブ実行中、Gコード各行は tx コンソール行として記録されない（`jobRunner` が `scheduler.enqueue()` を直接呼ぶため）。そのため GRBL から返る `ok` レスポンスは「直前の tx 行が存在しない」状態になり、フィルターされずすべてコンソールに表示される。これは仕様どおりの挙動であり、ジョブの進行確認に利用できる。`ok` の流れ始めるタイミングはジョブ開始直後ではなく、GRBL のプランナバッファが埋まって前行の実行完了後に `ok` が返る構造上、数秒後になる場合がある。
+
+**自動スクロール実装方針**
+
+`watch(() => lines.length, scrollToBottom)` のような Vue の watch でスクロールを駆動すると、Vue のスケジューラが render より前に watch コールバックを呼ぶ場合があり、`nextTick` を挟んでも DOM への行追加タイミングとずれるケースがある。このため以下の Observer ベースの実装を採用する。
+
+- **`MutationObserver({ childList: true })`** をログエリア（`.log`）に設定し、DOM への行追加後に確実に `scrollTop = scrollHeight` を設定する
+- **`ResizeObserver`** を同じ要素に設定し、コンテナのリサイズ時にも最下部を維持する（リサイズしても最新行が下端に固定され、古い行が上方向へ押し出される挙動）
+- どちらも `watch(logEl, ...)` 内で `v-if` の open/close に合わせてセットアップ・クリーンアップする（`onCleanup` で `disconnect()`）
+- ドロワーを開いた直後の初期スクロールは `scrollToBottom()`（`nextTick` 待ち）を `logEl` watch 内で呼ぶ
 
 | 行種別 | prefix | color |
 |---|---|---|
@@ -491,8 +512,7 @@ X  119.581   Y  76.025   Zoom 305%
 - ワークゼロへ移動（`G0 X0 Y0 Z0`）
 - ホーミング（`$H`）
 - アンロック（`$X`）
-- ソフトリセット（`\x18 (soft reset)`）
-- ジョブ実行中の各Gコード行
+- ソフトリセット（`\x18 (soft reset)`）：`ipc.softReset()` 経由のみ。`cancel()` が内部的に送るソフトリセットは tx 記録しない
 
 #### 入力行（34px）
 

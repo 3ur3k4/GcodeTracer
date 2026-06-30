@@ -26,7 +26,7 @@ export const useAppStore = defineStore('app', () => {
     Object.assign(grbl, next.grbl)
     Object.assign(job, next.job)
     Object.assign(osc, next.osc)
-    consoleState.lines = next.console.lines
+    Object.assign(consoleState, next.console)
   }
 
   /** App.vueのonMountedから一度だけ呼ぶ。返り値はunmount時に呼ぶ解除関数 */

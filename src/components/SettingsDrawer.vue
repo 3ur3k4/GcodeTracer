@@ -166,7 +166,7 @@ onMounted(refreshPorts)
           <button class="applyButton" @click="applyCalibration">適用</button>
           <button class="resetButton" @click="handleResetCalibration">リセット</button>
         </div>
-        <span class="calStatus">補正係数: ×{{ calibrationFactor.toFixed(3) }}</span>
+        <span class="calStatus">補正係数：×{{ calibrationFactor.toFixed(3) }}</span>
       </section>
 
       <section class="column">

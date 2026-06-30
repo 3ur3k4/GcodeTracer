@@ -15,7 +15,7 @@ const isOpen = ref(props.modelValue)
 // 親（リサイザー操作）からの変更を反映
 watch(() => props.modelValue, (val) => { isOpen.value = val })
 // ヘッダークリックによる変更を親に通知
-watch(isOpen, (val) => emit('update:modelValue', val))
+watch(isOpen, (val) => { emit('update:modelValue', val) })
 const command = ref('')
 const logEl = ref<HTMLDivElement | null>(null)
 
@@ -27,7 +27,7 @@ function isError(line: ConsoleLine): boolean {
   return line.direction === 'rx' && (line.text.startsWith('error:') || line.text.startsWith('ALARM:'))
 }
 
-const hasError = computed(() => store.console.lines.some(isError))
+const hasError = computed(() => store.console.hasError)
 
 function isOkOnly(line: ConsoleLine): boolean {
   return line.direction === 'rx' && line.text.trim() === 'ok'
@@ -84,13 +84,27 @@ function onKeyDown(event: KeyboardEvent): void {
   }
 }
 
-watch(
-  () => store.console.lines.length,
-  async () => {
-    await nextTick()
-    if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
-  },
-)
+async function scrollToBottom() {
+  await nextTick()
+  if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight
+}
+
+// logElがマウントされたとき(ドロワーを開いたとき)にスクロールし、
+// DOMへの行追加(MutationObserver)とコンテナリサイズ(ResizeObserver)でも最下部を維持する
+watch(logEl, (el, _old, onCleanup) => {
+  if (!el) return
+  scrollToBottom()
+  const resizeObserver = new ResizeObserver(() => { el.scrollTop = el.scrollHeight })
+  resizeObserver.observe(el)
+  // watch(lines.length)ではrender前に呼ばれてDOMと同期しない場合があるため、
+  // DOM更新後に確実に発火するMutationObserverで代替する
+  const mutationObserver = new MutationObserver(() => { el.scrollTop = el.scrollHeight })
+  mutationObserver.observe(el, { childList: true })
+  onCleanup(() => {
+    resizeObserver.disconnect()
+    mutationObserver.disconnect()
+  })
+})
 </script>
 
 <template>

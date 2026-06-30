@@ -126,6 +126,10 @@ electron/
 
 **リアルタイムコマンド**(`?` ステータスクエリ, `~` サイクル開始/再開, `!` フィード保持, `0x18`/Ctrl-X ソフトリセット)は`scheduler.ts`内でキューをバイパスし即座に送信する。通常コマンドはGRBL既定のRXバッファ(127バイト)を前提にCharacter-Countingで管理する。
 
+**`cancel()` とソフトリセット（`app.ts`）**
+
+`cancel()` ハンドラは `jobRunner.cancel()` に加えて `scheduler.softReset()` を呼ぶ。これはジョブを Feed Hold（`!`）で一時停止した状態でキャンセルした場合に GRBL が Hold 状態のままになるのを防ぐためである。ソフトリセット（Ctrl-X）をモーション実行中の GRBL に送ると、GRBL は `ALARM:8 Abort during cycle` を返した後にウェルカムメッセージを送信し、Alarm 状態へ遷移する。この `ALARM:8` は `grbl/state.ts` で `hasError = true` に反映される。なお `cancel()` はコンソールに tx 行を追記しない（`softReset()` ハンドラとは異なる）。
+
 > エラーコード(`error:N`)の人間可読化(`grbl/errors.ts`)に関する提案の詳細は、13章「残課題」にまとめる。
 
 ### 6.3 Renderer構成方針
@@ -174,10 +178,24 @@ interface AppState {
   }
   job: { running: boolean; paused: boolean; currentLine: number; sentLine: number; totalLines: number }
   osc: { ip: string; port: number; enabled: boolean }
+  console: {
+    lines: ConsoleLine[]  // 最大500行（超過分は先頭から削除）
+    hasError: boolean     // error:/ALARM: 行が存在するとtrue。アンロック($X)後にfalseへリセット
+  }
 }
 ```
 
 フィードレート/スピンドル速度は本フェーズの`AppState`には含めない(スコープ外)。`grbl/parser.ts`がステータス報告の`FS:`フィールドを内部的に保持すること自体は妨げないが、UIへの露出は対象外とする。
+
+**`console.hasError` の管理ルール（`grbl/state.ts`）**
+
+- `error:N` / `ALARM:N` の受信行を `appendConsoleLine` に追加する際 `isError = true` フラグを立てる → `hasError = true`
+- ステータス報告（`status`イベント）で `machineState` が `Alarm` → 非`Alarm` へ遷移したとき → `hasError = false`（`$X` アンロック成功を検出）
+- 情報メッセージ（`info` direction）や welcome メッセージはエラー扱いしない
+
+**Renderer側 Pinia ストア更新の注意点**
+
+`applyState` で各スライスを更新する際、`console` スライスは `Object.assign(consoleState, next.console)` のように**全フィールドをまとめて代入**すること。特定フィールド（`lines` のみ等）に絞ると `hasError` など新たに追加したフィールドが反映されないバグになる。
 
 ### 6.5 データフロー例
 

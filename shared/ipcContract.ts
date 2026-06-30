@@ -101,6 +101,7 @@ export const appStateSchema = z.object({
   }),
   console: z.object({
     lines: z.array(consoleLineSchema),
+    hasError: z.boolean(),
   }),
 })
 
@@ -115,7 +116,7 @@ export const initialAppState: AppState = {
   },
   job: { running: false, paused: false, currentLine: 0, sentLine: 0, totalLines: 0 },
   osc: { ip: '127.0.0.1', port: 9000, enabled: false },
-  console: { lines: [] },
+  console: { lines: [], hasError: false },
 }
 
 // ---------------------------------------------------------------------------
