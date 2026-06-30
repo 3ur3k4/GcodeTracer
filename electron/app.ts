@@ -101,6 +101,8 @@ export function createApp(deps: AppDeps): App {
       const cmd = parts.join(' ')
       state.appendConsoleLine('tx', cmd)
       scheduler.enqueue(cmd)
+      // G91(相対モード)を送信したままにするとWork ZeroなどのG0コマンドが誤動作するため即座に戻す
+      scheduler.enqueue('G90')
     },
 
     zero(axis) {
@@ -112,8 +114,8 @@ export function createApp(deps: AppDeps): App {
 
     gotoWorkZero() {
       if (!scheduler) return
-      state.appendConsoleLine('tx', 'G0 X0 Y0 Z0')
-      scheduler.enqueue('G0 X0 Y0 Z0')
+      state.appendConsoleLine('tx', 'G90 G0 X0 Y0 Z0')
+      scheduler.enqueue('G90 G0 X0 Y0 Z0')
     },
 
     home() {
@@ -150,6 +152,9 @@ export function createApp(deps: AppDeps): App {
 
     cancel() {
       jobRunner?.cancel()
+      // pauseでFeed Hold(!を送信)している場合、GRBLがHold状態のままになるため
+      // ソフトリセットでIdle状態に戻す。schedulerのinFlight/bufferUsedも同時にリセットされる。
+      scheduler?.softReset()
     },
 
     setPollInterval(ms) {
