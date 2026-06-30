@@ -31,12 +31,15 @@
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.utilities",
+      "identity": null,
       "target": [
         {
-          "target": "dir",
-          "arch": [
-            "arm64"
-          ]
+          "target": "dmg",
+          "arch": ["arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["arm64"]
         }
       ]
     }
