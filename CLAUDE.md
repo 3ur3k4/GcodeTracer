@@ -51,6 +51,25 @@ Each module directory under `electron/` (`serial/`, `grbl/`, `job/`, `ipc/`, `os
 
 When adding a new renderer→main action, add a variant to `rendererToMainMessageSchema`, a handler in `GatewayHandlers` (`electron/ipc/gateway.ts`), a wiring entry in `electron/app.ts`, and a wrapper method in `src/composables/useIpc.ts` — components should never call `window.api` directly.
 
+## Renderer-side persistent state (display settings)
+
+The rule "renderer never holds its own copy of machine state" applies specifically to **machine state** — anything that originates from GRBL, the serial port, or job execution. That state lives only in `electron/grbl/state.ts` and flows to the renderer as a single pushed snapshot via `IPC_CHANNELS.stateChanged`.
+
+**Display settings** are a distinct category: values that are purely renderer-scoped, have no effect on GRBL or serial communication, and do not need to be known by the Main process. These may be persisted in `localStorage` without violating the architecture.
+
+Criteria for a value to qualify as a display setting (all must hold):
+1. It does not affect any Main-process behavior (no GRBL commands, no serial writes, no job logic).
+2. It is not part of `AppState` and does not need to flow through IPC.
+3. It is used only within the renderer (one or more components/composables).
+
+**Implementation rule**: components must not read `localStorage` directly. Wrap all display settings in a dedicated composable under `src/composables/` (e.g. `useDisplayCalibration.ts`) that owns the `localStorage` key, exposes a typed reactive ref, and persists changes internally. Components import the composable — they never call `localStorage` themselves. This keeps the storage key and serialization logic in one place, and makes future migration (e.g. to an Electron settings file) a one-file change.
+
+Current display settings stored in `localStorage`:
+
+| Composable | Key | Description |
+|---|---|---|
+| `useDisplayCalibration` | `display.calibrationFactor` | Physical-size correction multiplier for the Visualizer (1.0 = CSS-standard 96 dpi) |
+
 ## Testing
 
 - Vitest only runs `electron/**/*.test.ts` (see `vite.config.ts` `test.include`) — there's no renderer test suite yet.

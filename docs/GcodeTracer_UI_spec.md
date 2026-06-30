@@ -250,7 +250,7 @@ G91 G0 G21 Z{dz}            # Z移動
 | 補助線 | その他 | `--grid-line` | 0.5px | 1.0 |
 
 - 座標ラベル: 原点線・主要線にのみ表示（補助線は省略）。`font-mono`・10px・color `--ts`
-- ダブルクリックで `fitToView()` 実行（ツールパスにフィット）。ツールパスが空の場合は GRBL 座標原点 (0,0) を左下に配置（scale=1、左下 `PADDING_PX` マージン）
+- ダブルクリックで `fitToView()` 実行（ツールパスにフィット）。ツールパスが空の場合は GRBL 座標原点 (0,0) を左下に配置（scale=実寸スケール、左下 `PADDING_PX` マージン）
 
 #### ツールパス描画
 
@@ -284,12 +284,13 @@ G91 G0 G21 Z{dz}            # Z移動
 
 | 要素 | アイコン | 動作 |
 |---|---|---|
-| 100% ボタン | `SquareEqual` | ズームを scale=1・offsetX/Y=canvas中央にリセット |
+| 100% ボタン | `SquareEqual` | ズームを実寸(100%)・offsetX/Y=canvas中央にリセット |
 | フィットボタン | `Group` | ツールパスの描画範囲にフィット（ダブルクリックと同等） |
 | プレビューボタン | `SlidersHorizontal` | 軌跡プレビューモードのトグル。ファイル読込済み時のみ表示。アクティブ時は背景を `--accent`・アイコンを `--bg` に反転（塗りつぶしスタイル）。再度押すと解除 |
 | 用紙ガイド | `Frame` + `AppSelect` | 用紙サイズ選択（なし/A3横/A3縦/A4横/A4縦/A5横/A5縦/カスタム）。選択時は原点(0,0)を左下として正方向に用紙サイズの破線矩形（`--warning`色・半透明塗り）を描画。カスタム選択時はW×H数値入力欄を表示 |
 
 - ズーム感度: wheel 1段あたり約6%（zoomFactor `1.06`）
+- ズーム表示値の基準: **100% = CSS標準96dpi換算での実寸（1mm G-code座標 = 1mm物理表示）**。実際の物理サイズはSettings Drawer の Display セクションでキャリブレーション可能
 
 #### プログレスオーバーレイ（下部中央、ジョブ実行中のみ表示）
 
@@ -559,6 +560,24 @@ X  119.581   Y  76.025   Zoom 305%
 | IP address | `<input type="text">`・変更時に即時反映 |
 | Port | `<input type="text">`・変更時に即時反映 |
 | Enable | トグルスイッチ（on: `--accent`・off: `--border`） |
+
+**Display セクション**
+
+実寸表示のキャリブレーションを行うセクション。
+
+| 要素 | 仕様 |
+|---|---|
+| 基準線バー | CSS標準96dpiで50mmに相当する固定幅（≈189px）のアクセントカラーバーを表示。ユーザーはこのバーに実物の定規を当てて実際の長さを読み取る |
+| 定規での実測値 | `<input type="number">` (mm単位)。Enterキーでも適用可。Settings Drawer を開き直しても直前に入力した値を保持する（`localStorage` 経由） |
+| 適用ボタン | 補正係数 = 50 ÷ 実測値 を計算して保存。Visualizer の「ズーム100%」が物理的な実寸と一致するよう補正される |
+| リセットボタン | 補正係数を1.0（CSS標準）に戻す |
+| 補正係数表示 | 現在の補正係数を `×N.NNN` 形式で表示（`font-mono`） |
+
+**キャリブレーションの仕組み**:
+- 基準線バーは `calibrationFactor` に関わらず常に `50 × BASE_PX_PER_MM` px 固定で描画する
+- 補正係数は `localStorage` キー `display.calibrationFactor` に保存（composable `useDisplayCalibration` 経由）
+- 直前の実測値は `localStorage` キー `display.lastMeasuredMm` に保存
+- コンポーネントが `localStorage` を直接操作することを禁止し、必ず `useDisplayCalibration` composable を経由する
 
 - Settings Drawer 外の領域をクリックすると Drawer が閉じる
 - 閉じるボタン: 右上に Lucide `X`

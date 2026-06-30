@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
+import { BASE_PX_PER_MM, useDisplayCalibration } from '@/composables/useDisplayCalibration'
 import { ChevronLeft, ChevronRight, Frame, Group, SlidersHorizontal, SquareEqual } from '@lucide/vue'
 import AppSelect from '@/components/AppSelect.vue'
 
@@ -11,8 +12,10 @@ const gcodeFile = useGcodeFileStore()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
 
-const view = ref({ scale: 1, offsetX: 0, offsetY: 0 })
-const zoomPercent = computed(() => Math.round(view.value.scale * 100))
+const { calibrationFactor } = useDisplayCalibration()
+const effectiveActualScale = computed(() => BASE_PX_PER_MM * calibrationFactor.value)
+const view = ref({ scale: BASE_PX_PER_MM * calibrationFactor.value, offsetX: 0, offsetY: 0 })
+const zoomPercent = computed(() => Math.round((view.value.scale / effectiveActualScale.value) * 100))
 
 // スライダーの v-model 用: ストアの previewLine を直接書き換える
 const previewLineModel = computed({
@@ -83,7 +86,7 @@ function fitToView(): void {
   if (!canvas) return
   if (gcodeFile.toolPath.segments.length === 0) {
     // toolpath なし: GRBL座標系の原点(0,0)を左下に配置する
-    view.value = { scale: 1, offsetX: PADDING_PX, offsetY: canvas.clientHeight - PADDING_PX }
+    view.value = { scale: effectiveActualScale.value, offsetX: PADDING_PX, offsetY: canvas.clientHeight - PADDING_PX }
     draw()
     return
   }
@@ -103,7 +106,7 @@ function zoomToActual(): void {
   const canvas = canvasRef.value
   if (!canvas) return
   view.value = {
-    scale: 1,
+    scale: effectiveActualScale.value,
     offsetX: canvas.clientWidth / 2,
     offsetY: canvas.clientHeight / 2,
   }
@@ -365,6 +368,8 @@ function onPointerUp(): void {
 function onDoubleClick(): void {
   fitToView()
 }
+
+watch(calibrationFactor, () => draw())
 
 watch(() => gcodeFile.toolPath, () => {
   // previewActive/previewLine はストアの load() でリセット済み

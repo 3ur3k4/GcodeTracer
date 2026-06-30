@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useIpc } from '@/composables/useIpc'
+import { BASE_PX_PER_MM, useDisplayCalibration } from '@/composables/useDisplayCalibration'
 import { RefreshCw, X } from '@lucide/vue'
 import type { PortInfo } from '@shared/ipcContract'
 import AppSelect from '@/components/AppSelect.vue'
@@ -88,6 +89,21 @@ function toggleOscEnabled(): void {
   ipc.updateOscSettings(oscForm.ip, oscForm.port, !store.osc.enabled)
 }
 
+// --- Display calibration ---
+const CAL_REF_MM = 50
+const { calibrationFactor, lastMeasuredMm: measuredMm, save: saveCalibration, reset: resetCalibration } = useDisplayCalibration()
+// Bar is always the CSS-standard width — user measures this fixed reference with a ruler
+const refBarPx = CAL_REF_MM * BASE_PX_PER_MM
+
+function applyCalibration(): void {
+  if (measuredMm.value <= 0) return
+  saveCalibration(CAL_REF_MM / measuredMm.value, measuredMm.value)
+}
+
+function handleResetCalibration(): void {
+  resetCalibration(CAL_REF_MM)
+}
+
 onMounted(refreshPorts)
 </script>
 
@@ -124,6 +140,33 @@ onMounted(refreshPorts)
           <span class="fieldLabel">Poll interval</span>
           <AppSelect v-model="pollIntervalMs" :options="pollOptions" :disabled="!store.connection.connected" @update:model-value="applyPollInterval" />
         </div>
+      </section>
+
+      <section class="column">
+        <h3 class="columnTitle">Display</h3>
+        <div class="field">
+          <span class="fieldLabel">実寸キャリブレーション</span>
+          <div class="calRefTrack">
+            <div class="calRefBar" :style="{ width: refBarPx + 'px' }" />
+          </div>
+          <span class="calRefLabel">↑ {{ CAL_REF_MM }} mm 基準線</span>
+        </div>
+        <label class="field">
+          <span class="fieldLabel">定規での実測値 (mm)</span>
+          <input
+            v-model.number="measuredMm"
+            class="input"
+            type="number"
+            min="1"
+            step="0.5"
+            @keydown.enter="applyCalibration"
+          />
+        </label>
+        <div class="calActions">
+          <button class="applyButton" @click="applyCalibration">適用</button>
+          <button class="resetButton" @click="handleResetCalibration">リセット</button>
+        </div>
+        <span class="calStatus">補正係数: ×{{ calibrationFactor.toFixed(3) }}</span>
       </section>
 
       <section class="column">
@@ -288,5 +331,50 @@ onMounted(refreshPorts)
   height: 16px;
   border-radius: 50%;
   background-color: var(--surface);
+}
+.calRefTrack {
+  height: 20px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.calRefBar {
+  height: 8px;
+  min-width: 4px;
+  max-width: 100%;
+  background-color: var(--accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.calRefLabel {
+  font-size: 10px;
+  color: var(--ts);
+}
+.calActions {
+  display: flex;
+  gap: var(--space-1);
+}
+.applyButton,
+.resetButton {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 11px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+.applyButton {
+  background-color: var(--accent);
+  color: var(--surface);
+}
+.resetButton {
+  background-color: var(--surface2);
+  color: var(--ts);
+  border: 1px solid var(--border);
+}
+.calStatus {
+  font-size: 10px;
+  color: var(--ts);
+  font-family: var(--font-mono);
 }
 </style>
