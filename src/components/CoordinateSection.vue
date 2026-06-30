@@ -69,7 +69,7 @@ function zeroAll(): void {
 }
 .value {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 18px;
   color: var(--tp);
   text-align: right;
   letter-spacing: -0.01em;
