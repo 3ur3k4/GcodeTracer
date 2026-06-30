@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/appStore'
 import { useGcodeFileStore } from '@/stores/gcodeFileStore'
 import { useIpc } from '@/composables/useIpc'
-import { FileCode2, FolderOpen, Home, Lock, LockOpen, Pause, Play, Settings, Square, TriangleAlert } from '@lucide/vue'
+import { FileCode2, FolderOpen, Home, Lock, LockOpen, Pause, Play, Settings, Square, TriangleAlert, X } from '@lucide/vue'
 import AppTooltip from '@/components/AppTooltip.vue'
 
 defineProps<{ gcodeTextPanelOpen: boolean }>()
@@ -101,6 +101,30 @@ function stop(): void {
       </button>
     </AppTooltip>
     <input ref="fileInput" class="hiddenInput" type="file" accept=".gcode,.nc,.ngc,.txt" @change="onFileChange" />
+    <AppTooltip text="ファイルを破棄">
+      <button
+        class="iconButton"
+        aria-label="ファイルを破棄"
+        :disabled="gcodeFile.lines.length === 0 || store.job.running || store.job.paused"
+        @click="gcodeFile.clear()"
+      >
+        <X :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
+    <AppTooltip text="Gコードテキスト">
+      <button
+        class="iconButton"
+        :class="{ activePanel: gcodeTextPanelOpen }"
+        :disabled="gcodeFile.lines.length === 0"
+        aria-label="Gコードテキストパネル"
+        @click="$emit('toggle-gcode-panel')"
+      >
+        <FileCode2 :size="17" :stroke-width="1.75" />
+      </button>
+    </AppTooltip>
+
+    <div class="separator" />
+
     <AppTooltip text="実行 / 再開">
       <button class="iconButton runButton" aria-label="実行" :disabled="!runActive" @click="runOrResume">
         <Play :size="17" :stroke-width="1.75" />
@@ -159,16 +183,6 @@ function stop(): void {
       <span class="progressLabel">{{ Math.round(progressPercent * 100) }}% ({{ store.job.currentLine }} / {{ store.job.totalLines }})</span>
     </div>
 
-    <AppTooltip text="Gコードテキスト">
-      <button
-        class="iconButton settingsButton"
-        :class="{ activePanel: gcodeTextPanelOpen }"
-        aria-label="Gコードテキストパネル"
-        @click="$emit('toggle-gcode-panel')"
-      >
-        <FileCode2 :size="17" :stroke-width="1.75" />
-      </button>
-    </AppTooltip>
     <AppTooltip text="設定">
       <button class="iconButton settingsButton" aria-label="設定" @click="$emit('toggle-settings')">
         <Settings :size="17" :stroke-width="1.75" />

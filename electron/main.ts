@@ -39,6 +39,7 @@ function createWindow(): void {
 
   win.on('enter-full-screen', () => win?.webContents.send(IPC_CHANNELS.fullscreenChanged, true))
   win.on('leave-full-screen', () => win?.webContents.send(IPC_CHANNELS.fullscreenChanged, false))
+  win.webContents.on('did-finish-load', () => win?.webContents.send(IPC_CHANNELS.fullscreenChanged, win.isFullScreen()))
   win.on('closed', () => {
     win = null
   })

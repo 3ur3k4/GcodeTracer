@@ -99,23 +99,32 @@
 | アプリ名 | `"Gcode Tracer"` テキスト・16px bold | — | クリック不可。通常時は `padding-left: 100px`（トラフィックライト分の余白）+ 右 padding でセパレーターの位置を調整。フルスクリーン時は padding をリセットし `width: 230px; text-align: center` でサイドパネル上に中央揃え |
 | — | セパレーター (1px × 24px) | — | アプリ名の直後。Left Panel 幅(230px)に揃う位置 |
 | Open File | `FolderOpen` | 常時 | ファイルピッカーを開く |
+| Discard File | `X` | ファイル読込済 かつ 未実行 | `gcodeFileStore.clear()` を呼び出し、読込済みファイルを破棄して白紙状態に戻す |
+| G-CODE パネル | `FileCode2` | ファイル読込済 | Gコードテキストパネルのトグル。アクティブ時は color `--accent` |
+| — | セパレーター (1px × 24px) | — | ファイル操作グループとジョブ制御グループの区切り |
 | Run / Resume | `Play` | 接続済み かつ (一時停止中 または (未実行 かつ ファイル読込済)) | 実行開始 or 一時停止から再開 |
 | Pause | `Pause` | `machineState === 'Run'` | Feed Hold |
 | Stop | `Square` | `machineState === 'Run' \| 'Hold'` | ジョブキャンセル |
-| — | セパレーター (1px × 24px) | — | ロゴ〜Stopまでの合計幅がLeft Panel幅(230px)と揃う位置 |
+| — | セパレーター (1px × 24px) | — | — |
 | Home | `Home` | 接続済み | `$H` ホーミング |
 | Lock / Unlock | `Lock`(Alarm時) / `LockOpen`(それ以外) | 接続済み | Alarm状態時に `$X` アンロック。非Alarm時はクリック無効 |
 | — | セパレーター (1px × 24px) | — | — |
 | Soft Reset | `TriangleAlert` | 常時 | `0x18` 送信 |
 | — | Spacer（flex: 1） | — | 右側要素を右端に押し出す |
-| G-CODE パネル | `FileCode2` | 常時 | Gコードテキストパネルのトグル。アクティブ時は color `--accent` |
 | Settings | `Settings` | 常時 | Settings Drawer のトグル |
 
 - **Run ボタン**: 塗りつぶしスタイル（bg `--accent`・border `--accent`・icon color `--surface`）
 - **Soft Reset ボタン**: 塗りつぶしスタイル（bg `--danger`・border `--danger`・icon color `--surface`）
 - **Lock/Unlock ボタン**: `machineState === 'Alarm'` 時は `--warning` border+color で `Lock` アイコン。それ以外は `LockOpen` アイコンをデフォルトスタイルで表示
 - **G-CODE パネルボタン・Settings ボタン**: アクティブ時（パネル表示中）は color `--accent`（塗りつぶしではなくアイコン色のみ変化）
+- **Discard File・G-CODE パネルボタン**: ファイル未読込時も常時表示し、`disabled`（`opacity: 0.3`）で非活性とする。`v-if` による表示/非表示切替は行わない（後述のボタン不動原則を参照）
 - 全ボタンに `AppTooltip` を適用し、ホバー500ms後にツールチップを表示。Gコードコマンドを送信するボタンにはサブテキスト（コマンド文字列）も表示
+
+#### ボタン配置の不動原則
+
+Toolbar のボタンは `v-if` による出し入れを原則として行わない。Toolbar は緊急性の高い操作（Stop・Soft Reset 等）やアクセス頻度の高い操作が集まる場所であり、ボタン位置が状態によって移動すると操作ミスを招く恐れがある。条件付き表示が必要な場合は `disabled` + `opacity` による非活性表示を使い、位置は常に固定する。
+
+例外: 再開ポイントラベル・進捗エリアはステータス表示領域（Spacer 右）に収まり、ボタン群の位置に影響しないため `v-if` を使用している。
 
 #### 再開ポイントラベル（Spacer右）
 
@@ -313,7 +322,7 @@ G91 G0 G21 Z{dz}            # Z移動
 
 ### 3.7 Gコードテキストパネル
 
-**トリガー**: Top Toolbar の `FileCode2` ボタン（Settings ボタン左隣）。アクティブ時はアイコンを `--accent` 色で表示  
+**トリガー**: Top Toolbar のファイルグループ内 `FileCode2` ボタン（Open File・Discard File の右隣）。ファイル読込済み時のみ活性。アクティブ時はアイコンを `--accent` 色で表示  
 **表示位置**: Visualizer の右端に並置（Visualizer 幅を押し縮める）  
 **デフォルト幅**: 280px・左端ドラッグで 180px〜600px に可変  
 **背景**: `--surface`  
