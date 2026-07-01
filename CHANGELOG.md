@@ -36,5 +36,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `preload`: `webUtils.getPathForFile` によるファイルパス取得修正
 - `serialport` ネイティブモジュールの Electron ビルド不整合
 
-[Unreleased]: https://github.com/3ur3k4/gcode-tracer/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/3ur3k4/gcode-tracer/releases/tag/v0.1.0
+[Unreleased]: https://github.com/3ur3k4/GcodeTracer/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/3ur3k4/GcodeTracer/releases/tag/v0.1.0

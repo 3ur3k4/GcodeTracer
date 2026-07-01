@@ -28,6 +28,7 @@
       "node_modules/serialport/**/*",
       "node_modules/@serialport/**/*"
     ],
+    "artifactName": "GcodeTracer-${version}-${arch}.${ext}",
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.utilities",
