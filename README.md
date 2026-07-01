@@ -1,6 +1,10 @@
-# Gcode Tracer
+# Gcode Tracer · v0.1.0
 
-macOS 向け GRBL G-code センダー。Electron + Vue 3 + Pinia で構築されています。
+macOS 向け GRBL G-code Sender。Electron + Vue 3 + Pinia で構築されています。
+
+主にペンプロッターの使用を想定しています。また、OSC通信による外部アプリへの機械位置の送信が可能です。
+
+このアプリケーションは『[Trace Attribute](https://vimeo.com/1150657891)』の制作に際して開発されたものです。
 
 > **動作環境**: macOS (Apple Silicon / arm64) のみ
 
@@ -9,6 +13,7 @@ macOS 向け GRBL G-code センダー。Electron + Vue 3 + Pinia で構築され
 ## スクリーンショット
 
 ![Gcode Tracer](./docs/screenshot.png)
+動作イメージ
 
 ---
 
@@ -29,7 +34,7 @@ macOS 向け GRBL G-code センダー。Electron + Vue 3 + Pinia で構築され
 
 ## ダウンロード & インストール
 
-[Releases](../../releases) ページから最新の `.dmg` をダウンロードしてください。
+[Releases](https://github.com/3ur3k4/GcodeTracer/releases) ページから最新の `.dmg` をダウンロードしてください。
 
 ### 初回起動時の注意（Gatekeeper）
 
@@ -49,9 +54,57 @@ xattr -cr /Applications/"Gcode Tracer.app"
 
 ---
 
+## OSC 送信
+
+Settings パネルで有効化すると、マシンのワーク座標 (WPos) を UDP/OSC で外部アプリに送信します。
+
+| 項目 | 内容 |
+|---|---|
+| プロトコル | OSC over UDP |
+| アドレス | `/gcodeTracer/position` |
+| 引数 | `x` `y` `z`（float32、単位: mm） |
+| デフォルト送信先 | `127.0.0.1:9000` |
+| IP / ポート | Settings パネルで変更可 |
+
+座標値が変化したタイミングで即時送信されます（固定間隔のポーリングではありません）。
+
+---
+
+## 開発者向け
+
+### 必要環境
+
+- Node.js 22 以降
+- npm 10 以降
+
+### セットアップ & 起動
+
+```bash
+npm install      # serialport のネイティブビルドも自動実行
+npm run dev      # Vite 開発サーバー + Electron 起動
+```
+
+### ビルド（配布用パッケージ）
+
+```bash
+npm run build    # TypeCheck → Vite build → electron-builder
+# release/ に dmg と zip が生成される
+```
+
+### テスト
+
+```bash
+npm test                                          # 全テスト実行
+npx vitest run electron/grbl/parser.test.ts       # 単一ファイル
+```
+
+---
+
 ## 動作確認済み環境
 
-Arduino Uno R3 + GRBL 1.1h
+Arduino Uno R3 + GRBL 1.1h , MacBook Air M1 (A2337) Sequoia 15.5
+
+
 ---
 
 ## ライセンス
