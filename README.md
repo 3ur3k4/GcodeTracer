@@ -87,7 +87,7 @@ npm run dev      # Vite 開発サーバー + Electron 起動
 ### ビルド（配布用パッケージ）
 
 ```bash
-npm run build    # TypeCheck → Vite build → electron-builder
+npm run package  # TypeCheck → Vite build → electron-builder
 # release/ に dmg と zip が生成される
 ```
 

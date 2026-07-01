@@ -119,10 +119,10 @@ git tag v0.2.0
 ### Step 3: ビルド・署名・パッケージ
 
 ```bash
-npm run build
+npm run package
 ```
 
-electron-builder が `release/` に dmg と zip を生成する。
+`npm run build`（TypeCheck + Vite）の後に electron-builder が走り、`release/` に dmg と zip を生成する。
 
 ### Step 4: 動作確認チェックリスト
 

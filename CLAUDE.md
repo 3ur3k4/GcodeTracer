@@ -10,7 +10,8 @@ Gcode Tracer: a macOS-only Electron + Vue 3 + Pinia GRBL G-code sender. Full req
 
 ```bash
 npm run dev         # vite dev server + electron
-npm run build       # typecheck then vite build
+npm run build       # typecheck then vite build (renderer + electron main — no packaging)
+npm run package     # build then electron-builder → release/ に dmg/zip を生成
 npm run typecheck   # tsc (electron/shared) + vue-tsc (src) — no emit, run both before considering a change done
 npm test            # vitest run (electron/**/*.test.ts only — see vite.config.ts `test.include`)
 npx vitest run electron/grbl/parser.test.ts   # run a single test file
